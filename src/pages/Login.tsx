@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Card,
   CardHeader,
@@ -20,16 +20,23 @@ import {
   ShieldAlert,
   CheckCircle2,
   Lock,
+  ArrowLeft,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { UserRole } from '@/types';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { loginAsRole, signIn } = useAuth();
+  const { loginAsRole, signIn, signUp } = useAuth();
+  const [tab, setTab] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('rajesh.varma@gov.in');
   const [password, setPassword] = useState('••••••••••••');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('government');
+  const [name, setName] = useState('');
+  const [organization, setOrganization] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
 
   const handleQuickLogin = (role: UserRole) => {
     loginAsRole(role);
@@ -39,12 +46,38 @@ export const Login: React.FC = () => {
     else if (role === 'admin') navigate('/admin');
   };
 
-  const handleCustomSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await signIn(email, password);
-    setIsSubmitting(false);
-    navigate('/government');
+    try {
+      if (tab === 'signin') {
+        const u = await signIn(email, password, selectedRole);
+        setMessage(`Authenticated as ${u.name}! Redirecting...`);
+        setTimeout(() => {
+          if (u.role === 'government') navigate('/government');
+          else if (u.role === 'startup') navigate('/startup');
+          else if (u.role === 'expert') navigate('/expert');
+          else navigate('/admin');
+        }, 500);
+      } else {
+        const u = await signUp({
+          name: name || 'Demo Officer',
+          email: email || `user_${Date.now()}@domain.in`,
+          password,
+          role: selectedRole,
+          departmentOrCompany: organization || (selectedRole === 'government' ? 'State Innovation Council' : 'InnoTech Solutions'),
+        });
+        setMessage(`Account created for ${u.name}! Redirecting...`);
+        setTimeout(() => {
+          if (u.role === 'government') navigate('/government');
+          else if (u.role === 'startup') navigate('/startup');
+          else if (u.role === 'expert') navigate('/expert');
+          else navigate('/admin');
+        }, 500);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -52,7 +85,18 @@ export const Login: React.FC = () => {
       {/* Background Grid Accent */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293d15_1px,transparent_1px),linear-gradient(to_bottom,#1f293d15_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-lg space-y-6">
+      {/* Return to Home Link */}
+      <div className="absolute top-4 left-4 z-20">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
+      <div className="relative z-10 w-full max-w-xl space-y-6 pt-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-navy-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30 mb-2 ring-1 ring-white/20">
@@ -66,7 +110,7 @@ export const Login: React.FC = () => {
           </p>
           <div className="pt-1 flex items-center justify-center gap-2">
             <span className="text-[11px] text-blue-300 font-semibold px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30">
-              SIH Prototype Demo
+              SIH Prototype
             </span>
             <span className="text-[11px] text-emerald-300 font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30">
               GFR 2017 Rule 149(viii)
@@ -76,139 +120,185 @@ export const Login: React.FC = () => {
 
         {/* Login Card */}
         <Card className="border-slate-800 bg-white shadow-2xl overflow-hidden">
+          {/* Top Auth Mode Tabs */}
+          <div className="grid grid-cols-2 border-b border-slate-200 text-center font-bold text-xs sm:text-sm">
+            <button
+              type="button"
+              onClick={() => setTab('signin')}
+              className={`py-3 transition-colors ${
+                tab === 'signin' ? 'bg-slate-900 text-white shadow-inner' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Sign In with Credentials
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('register')}
+              className={`py-3 transition-colors ${
+                tab === 'register' ? 'bg-slate-900 text-white shadow-inner' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Register New Account
+            </button>
+          </div>
+
           <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-            <CardTitle className="text-base sm:text-lg">Select Demo Persona</CardTitle>
-            <CardDescription className="text-xs">
-              Experience the end-to-end procurement journey as any stakeholder (No credentials required)
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base sm:text-lg">
+                  {tab === 'signin' ? 'Account Authentication' : 'Create New Stakeholder Account'}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {tab === 'signin'
+                    ? 'Enter your official credentials or use 1-click demo personas below'
+                    : 'Register as Government Department, DPIIT Startup, or Technical Expert'}
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4 pt-5">
-            {/* Quick Demo Persona Selection Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('government')}
-                className="group flex flex-col justify-between p-3.5 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/70 hover:border-blue-400 transition-all text-left shadow-xs"
-              >
-                <div className="flex items-center justify-between w-full mb-2">
-                  <div className="p-2 rounded-lg bg-navy-900 text-white shadow-sm">
-                    <Shield className="w-4 h-4 text-blue-300" />
-                  </div>
-                  <Badge variant="navy" size="sm">Gov IAS</Badge>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900 text-xs sm:text-sm">Government Officer</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">MoHUA / Smart Cities</p>
-                </div>
-                <div className="mt-2 pt-2 border-t border-blue-200/60 flex items-center justify-between text-[11px] font-semibold text-blue-800">
-                  <span>Enter Command Center</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('startup')}
-                className="group flex flex-col justify-between p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/70 hover:border-emerald-400 transition-all text-left shadow-xs"
-              >
-                <div className="flex items-center justify-between w-full mb-2">
-                  <div className="p-2 rounded-lg bg-emerald-700 text-white shadow-sm">
-                    <Briefcase className="w-4 h-4 text-emerald-200" />
-                  </div>
-                  <Badge variant="success" size="sm">DPIIT Vetted</Badge>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900 text-xs sm:text-sm">Startup Innovator</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">EcoRoute Technologies</p>
-                </div>
-                <div className="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px] font-semibold text-emerald-800">
-                  <span>Apply & Track Pilot</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('expert')}
-                className="group flex flex-col justify-between p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-100/70 hover:border-amber-400 transition-all text-left shadow-xs"
-              >
-                <div className="flex items-center justify-between w-full mb-2">
-                  <div className="p-2 rounded-lg bg-amber-700 text-white shadow-sm">
-                    <GraduationCap className="w-4 h-4 text-amber-200" />
-                  </div>
-                  <Badge variant="warning" size="sm">IIT / CSIR</Badge>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900 text-xs sm:text-sm">Technical Evaluator</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">Prof. S. Ramanathan</p>
-                </div>
-                <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px] font-semibold text-amber-900">
-                  <span>Evaluation Workspace</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin')}
-                className="group flex flex-col justify-between p-3.5 rounded-xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/70 hover:border-purple-400 transition-all text-left shadow-xs"
-              >
-                <div className="flex items-center justify-between w-full mb-2">
-                  <div className="p-2 rounded-lg bg-purple-900 text-white shadow-sm">
-                    <ShieldAlert className="w-4 h-4 text-purple-200" />
-                  </div>
-                  <Badge variant="primary" size="sm">Platform</Badge>
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900 text-xs sm:text-sm">Platform Admin</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">Directorate General</p>
-                </div>
-                <div className="mt-2 pt-2 border-t border-purple-200/60 flex items-center justify-between text-[11px] font-semibold text-purple-900">
-                  <span>System Analytics</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              </button>
-            </div>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-400 font-semibold text-[10px]">
-                  Or Standard Email Authentication
+          <CardContent className="space-y-4 pt-4">
+            {/* Quick Demo Persona Ribbon */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Instant 1-Click Role Login (Demo & Evaluation)</span>
                 </span>
+                <span className="text-[10px] text-slate-400">Zero Password</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('government')}
+                  className="p-2 rounded-lg bg-blue-100/70 border border-blue-300 text-blue-900 hover:bg-blue-200 text-xs font-bold text-left transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <Shield className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                  <span className="truncate">Gov Officer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('startup')}
+                  className="p-2 rounded-lg bg-emerald-100/70 border border-emerald-300 text-emerald-900 hover:bg-emerald-200 text-xs font-bold text-left transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <span className="truncate">Startup</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('expert')}
+                  className="p-2 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-950 hover:bg-amber-200 text-xs font-bold text-left transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span className="truncate">Expert</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('admin')}
+                  className="p-2 rounded-lg bg-purple-100/70 border border-purple-300 text-purple-950 hover:bg-purple-200 text-xs font-bold text-left transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                  <span className="truncate">Admin</span>
+                </button>
               </div>
             </div>
 
-            <form onSubmit={handleCustomSignIn} className="space-y-3">
-              <Input
-                label="Official Email ID"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="officer@gov.in"
-                required
-              />
-              <Input
-                label="Password / Security Token"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+            {message && (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            {/* Custom Credentials Form */}
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Role Picker */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Stakeholder Role</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'government', label: 'Government', icon: Shield },
+                    { id: 'startup', label: 'Startup', icon: Briefcase },
+                    { id: 'expert', label: 'Expert', icon: GraduationCap },
+                    { id: 'admin', label: 'Admin', icon: ShieldAlert },
+                  ].map((r) => {
+                    const Icon = r.icon;
+                    const isSelected = selectedRole === r.id;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedRole(r.id as UserRole)}
+                        className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1.5 text-left transition-all ${
+                          isSelected
+                            ? 'bg-navy-900 text-white border-navy-900 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{r.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {tab === 'register' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    label="Full Name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Dr. Rajesh Sharma"
+                    required
+                  />
+                  <Input
+                    label="Ministry / Organization"
+                    type="text"
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    placeholder="e.g. Ministry of Health"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Official Email ID"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="officer@gov.in or any email"
+                  required
+                />
+                <Input
+                  label="Password / Token"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                />
+              </div>
+
               <Button
                 type="submit"
                 variant="navy"
-                className="w-full"
+                className="w-full mt-2"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Signing In...' : 'Sign In with Government ID'}
+                {isSubmitting
+                  ? 'Verifying...'
+                  : tab === 'signin'
+                  ? `Sign In as ${selectedRole.toUpperCase()}`
+                  : `Complete Registration & Enter Platform`}
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="bg-slate-50 border-t border-slate-100 p-4 text-center block">
+          <CardFooter className="bg-slate-50 border-t border-slate-100 p-3.5 text-center block">
             <p className="text-[11px] text-slate-500">
               National Innovation Procurement System • Smart India Hackathon Prototype
             </p>

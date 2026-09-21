@@ -1,13 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { User, UserRole } from '@/types';
-import { mockService } from '@/services/mockService';
 import { mockUsers } from '@/data/mockData';
+
+export interface SignUpData {
+  name: string;
+  email: string;
+  password?: string;
+  role: UserRole;
+  departmentOrCompany: string;
+  designation?: string;
+  phone?: string;
+}
 
 interface AuthContextValue {
   user: User | null;
   role: UserRole;
   loading: boolean;
-  signIn: (email: string, password?: string) => Promise<string | null>;
+  signIn: (email: string, password?: string, roleOverride?: UserRole) => Promise<User>;
+  signUp: (data: SignUpData) => Promise<User>;
   loginAsRole: (role: UserRole) => void;
   switchRole: (role: UserRole) => void;
   signOut: () => Promise<void>;
@@ -16,6 +26,27 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AUTH_USER_KEY = 'pragati_ai_auth_user';
+const CUSTOM_USERS_KEY = 'pragati_ai_registered_users';
+
+function getStoredCustomUsers(): User[] {
+  try {
+    const saved = localStorage.getItem(CUSTOM_USERS_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.warn('Failed to parse registered users', e);
+  }
+  return [];
+}
+
+function saveCustomUser(newUser: User) {
+  try {
+    const existing = getStoredCustomUsers();
+    const updated = [newUser, ...existing.filter((u) => u.email.toLowerCase() !== newUser.email.toLowerCase())];
+    localStorage.setItem(CUSTOM_USERS_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to save registered user', e);
+  }
+}
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -25,7 +56,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     } catch (e) {
       console.warn('Failed to parse saved auth user', e);
     }
-    // Default to Government officer for instant demo experience
+    // Default to mock Government officer for seamless experience if session was active
     return mockUsers[0];
   });
 
@@ -43,20 +74,75 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     loginAsRole(newRole);
   }, [loginAsRole]);
 
-  const signIn = useCallback(async (email: string, _password?: string) => {
+  const signIn = useCallback(async (email: string, _password?: string, roleOverride?: UserRole): Promise<User> => {
     setLoading(true);
-    // Find matching user by email, or match role from email substring
-    let matched = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const customUsers = getStoredCustomUsers();
+    const allUsers = [...customUsers, ...mockUsers];
+
+    // Find matching user by email
+    let matched = allUsers.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+
     if (!matched) {
-      if (email.includes('startup') || email.includes('ecoroute')) matched = mockUsers[1];
-      else if (email.includes('expert') || email.includes('iit')) matched = mockUsers[2];
-      else if (email.includes('admin')) matched = mockUsers[3];
-      else matched = mockUsers[0];
+      // If user typed custom email with a role selected or guessed
+      const assignedRole: UserRole =
+        roleOverride ||
+        (email.includes('startup') || email.includes('ecoroute') || email.includes('tech')
+          ? 'startup'
+          : email.includes('expert') || email.includes('iit') || email.includes('dr')
+          ? 'expert'
+          : email.includes('admin')
+          ? 'admin'
+          : 'government');
+
+      const derivedName = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Officer';
+      
+      const newUser: User = {
+        id: `user-${Date.now()}`,
+        name: derivedName,
+        email: email.trim(),
+        role: assignedRole,
+        departmentOrCompany:
+          assignedRole === 'government'
+            ? 'Department of Public Innovation'
+            : assignedRole === 'startup'
+            ? 'Pioneering Innovations Pvt Ltd'
+            : assignedRole === 'expert'
+            ? 'Technical Evaluation Committee'
+            : 'Pragati AI Governance Authority',
+        verified: true,
+        designation: assignedRole === 'government' ? 'Director / Procurement Officer' : 'Chief Technical Lead',
+      };
+
+      saveCustomUser(newUser);
+      matched = newUser;
+    } else if (roleOverride && matched.role !== roleOverride) {
+      matched = { ...matched, role: roleOverride };
     }
+
     setUser(matched);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(matched));
     setLoading(false);
-    return null;
+    return matched;
+  }, []);
+
+  const signUp = useCallback(async (data: SignUpData): Promise<User> => {
+    setLoading(true);
+    const newUser: User = {
+      id: `user-${Date.now()}`,
+      name: data.name.trim(),
+      email: data.email.trim(),
+      role: data.role,
+      departmentOrCompany: data.departmentOrCompany.trim(),
+      designation: data.designation?.trim() || (data.role === 'government' ? 'Director / Innovation Lead' : 'Founder & CEO'),
+      phone: data.phone?.trim() || '+91 98765 43210',
+      verified: true,
+    };
+
+    saveCustomUser(newUser);
+    setUser(newUser);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(newUser));
+    setLoading(false);
+    return newUser;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -70,11 +156,12 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       role,
       loading,
       signIn,
+      signUp,
       loginAsRole,
       switchRole,
       signOut,
     }),
-    [user, role, loading, signIn, loginAsRole, switchRole, signOut]
+    [user, role, loading, signIn, signUp, loginAsRole, switchRole, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -23,6 +23,7 @@ import {
   Briefcase,
   GraduationCap,
   ShieldAlert,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { UserRole } from '@/types';
@@ -209,6 +210,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
             System & Quick Roles
           </div>
+
+          <NavLink
+            to="/"
+            onClick={() => {
+              if (window.innerWidth < 1024) onClose();
+            }}
+            className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-navy-900 hover:text-white transition-colors"
+          >
+            <Home className="h-3.5 w-3.5 text-slate-400" />
+            <span>Public Home Page</span>
+          </NavLink>
 
           <NavLink
             to="/settings"

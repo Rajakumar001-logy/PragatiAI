@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
+import { HomePage } from '@/pages/HomePage';
 import { Login } from '@/pages/Login';
 import { GovernmentDashboard } from '@/pages/GovernmentDashboard';
 import { StartupPortal } from '@/pages/StartupPortal';
@@ -20,11 +21,14 @@ import { RequireAuth } from '@/auth/RequireAuth';
 
 export const router = createBrowserRouter([
   {
+    path: '/',
+    element: <HomePage />,
+  },
+  {
     path: '/login',
     element: <Login />,
   },
   {
-    path: '/',
     element: (
       <RequireAuth>
         <AppLayout />
@@ -32,69 +36,65 @@ export const router = createBrowserRouter([
     ),
     children: [
       {
-        index: true,
-        element: <Navigate to="/government" replace />,
-      },
-      {
-        path: 'government',
+        path: '/government',
         element: <GovernmentDashboard />,
       },
       {
-        path: 'startup',
+        path: '/startup',
         element: <StartupPortal />,
       },
       {
-        path: 'expert',
+        path: '/expert',
         element: <ExpertReview />,
       },
       {
-        path: 'admin',
+        path: '/admin',
         element: <AdminDashboard />,
       },
       {
-        path: 'discover-startups',
+        path: '/discover-startups',
         element: <DiscoverStartups />,
       },
       {
-        path: 'challenges',
+        path: '/challenges',
         element: <Challenges />,
       },
       {
-        path: 'applications',
+        path: '/applications',
         element: <Applications />,
       },
       {
-        path: 'evaluations',
+        path: '/evaluations',
         element: <Evaluations />,
       },
       {
-        path: 'pilots',
+        path: '/pilots',
         element: <Pilots />,
       },
       {
-        path: 'kpis',
+        path: '/kpis',
         element: <KPIs />,
       },
       {
-        path: 'payments',
+        path: '/payments',
         element: <Payments />,
       },
       {
-        path: 'validation',
+        path: '/validation',
         element: <Validation />,
       },
       {
-        path: 'scale-up',
+        path: '/scale-up',
         element: <ScaleUp />,
       },
       {
-        path: 'settings',
+        path: '/settings',
         element: <Settings />,
       },
     ],
   },
   {
     path: '*',
-    element: <Navigate to="/login" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);
