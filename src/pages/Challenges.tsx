@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Card,
   CardHeader,
@@ -25,57 +26,76 @@ import {
   Clock,
   ArrowRight,
   Sparkles,
+  Bot,
+  Compass,
 } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
 
 export const Challenges: React.FC = () => {
+  const { role } = useAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [search, setSearch] = useState('');
   const [selectedMinistry, setSelectedMinistry] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDetail, setActiveDetail] = useState<Challenge | null>(null);
 
-  // New challenge form state
+  // 5-step wizard state
+  const [wizardStep, setWizardStep] = useState(1);
   const [newTitle, setNewTitle] = useState('');
   const [newProblem, setNewProblem] = useState('');
+  const [newSituation, setNewSituation] = useState('');
   const [newOutcome, setNewOutcome] = useState('');
-  const [newDept, setNewDept] = useState('');
-  const [newMinistry, setNewMinistry] = useState('');
-  const [newBudget, setNewBudget] = useState('3500000');
+  const [newDept, setNewDept] = useState('Public Works Department');
+  const [newMinistry, setNewMinistry] = useState('Ministry of Housing & Urban Affairs');
+  const [newBudget, setNewBudget] = useState('5000000');
   const [newDuration, setNewDuration] = useState('60');
+  const [kpiName, setKpiName] = useState('Operational Efficiency Improvement');
+  const [kpiBaseline, setKpiBaseline] = useState('0%');
+  const [kpiTarget, setKpiTarget] = useState('25%');
+  const [startupStage, setStartupStage] = useState('DPIIT Registered (TRL 7+)');
+
+  const loadData = () => {
+    mockService.getChallenges().then(setChallenges);
+  };
 
   useEffect(() => {
-    mockService.getChallenges().then(setChallenges);
+    loadData();
+    const unsubscribe = mockService.subscribe(loadData);
+    return () => unsubscribe();
   }, []);
 
-  const handleCreateChallenge = (e: React.FormEvent) => {
+  const handleCreateChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newProblem) return;
+    if (!newTitle) return;
 
-    mockService
-      .createChallenge({
-        title: newTitle,
-        problemStatement: newProblem,
-        expectedOutcome: newOutcome,
-        department: newDept || 'Municipal Services',
-        ministry: newMinistry || 'Ministry of Urban Development',
-        budgetAllocated: Number(newBudget),
-        currentStage: 'Open for Applications',
-        applicationDeadline: '2026-11-30',
-        pilotDurationDays: Number(newDuration),
-        tags: ['New Challenge', 'SIH 2026'],
-        kpis: [
-          { id: 'k1', name: 'Primary Operational Efficiency', unit: '%', baseline: 0, target: 20, weightage: 50 },
-          { id: 'k2', name: 'Response Time Reduction', unit: 'hours', baseline: 12, target: 2, weightage: 50 },
-        ],
-      })
-      .then((created) => {
-        setChallenges((prev) => [created, ...prev]);
-        setIsModalOpen(false);
-        // Reset form
-        setNewTitle('');
-        setNewProblem('');
-        setNewOutcome('');
-      });
+    await mockService.createChallenge({
+      title: newTitle,
+      problemStatement: newProblem || 'Municipal infrastructure deterioration requires automated AI monitoring.',
+      currentSituation: newSituation || 'Current manual inspection methods are slow and subjective.',
+      expectedOutcome: newOutcome || 'Automated classification and real-time alerts with >= 90% accuracy.',
+      department: newDept || 'Municipal Services',
+      ministry: newMinistry || 'Ministry of Housing & Urban Affairs',
+      budgetAllocated: Number(newBudget) || 5000000,
+      currentStage: 'OPEN',
+      applicationDeadline: '2026-11-30',
+      pilotDurationDays: Number(newDuration) || 60,
+      tags: ['Smart Cities', 'SIH 2026', 'Automation'],
+      kpis: [
+        { id: `kpi-${Date.now()}-1`, name: kpiName, unit: '%', baseline: 0, target: 25, weightage: 50 },
+        { id: `kpi-${Date.now()}-2`, name: 'Turnaround Time Reduction', unit: 'hours', baseline: 24, target: 4, weightage: 50 },
+      ],
+      eligibilityCriteria: {
+        startupStage,
+        requiredCertifications: ['ISO 9001:2015', 'ISO 27001'],
+        technologyRequirements: 'Real-time telemetry and edge device acceleration',
+        securityRequirements: 'Data residency in India and TLS 1.3 encrypted data transit',
+      },
+    });
+
+    setIsModalOpen(false);
+    setWizardStep(1);
+    setNewTitle('');
+    setNewProblem('');
   };
 
   const filteredChallenges = challenges.filter((c) => {
@@ -96,17 +116,30 @@ export const Challenges: React.FC = () => {
             Outcome-Based Innovation Challenges
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Government problem statements translated into measurable, challenge-based procurement requirements
+            Government problem statements translated into standardized, challenge-based public procurement requirements
           </p>
         </div>
 
-        <Button
-          variant="navy"
-          onClick={() => setIsModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
-          Publish New Challenge
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link to="/discover-startups">
+            <Button variant="outline" size="sm" leftIcon={<Compass className="w-4 h-4" />}>
+              AI Startup Matching
+            </Button>
+          </Link>
+          {(role === 'government' || role === 'admin') && (
+            <Button
+              variant="navy"
+              size="sm"
+              onClick={() => {
+                setWizardStep(1);
+                setIsModalOpen(true);
+              }}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Publish New Challenge
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -136,8 +169,8 @@ export const Challenges: React.FC = () => {
       {/* Challenges Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredChallenges.map((challenge) => (
-          <Card key={challenge.id} className="flex flex-col justify-between hover:border-blue-300 transition-all">
-            <CardHeader className="space-y-3">
+          <Card key={challenge.id} className="flex flex-col justify-between hover:border-blue-300 transition-all shadow-xs">
+            <CardHeader className="space-y-3 pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                   {challenge.code}
@@ -145,7 +178,7 @@ export const Challenges: React.FC = () => {
                 <StatusIndicator status={challenge.currentStage} label={challenge.currentStage} />
               </div>
               <div>
-                <CardTitle className="text-base sm:text-lg hover:text-blue-700 cursor-pointer">
+                <CardTitle className="text-base sm:text-lg hover:text-blue-700 cursor-pointer" onClick={() => setActiveDetail(challenge)}>
                   {challenge.title}
                 </CardTitle>
                 <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
@@ -159,7 +192,7 @@ export const Challenges: React.FC = () => {
 
             <CardContent className="space-y-4">
               <div>
-                <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                   Public Problem Statement
                 </h5>
                 <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
@@ -168,8 +201,8 @@ export const Challenges: React.FC = () => {
               </div>
 
               <div>
-                <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Outcome & Sandbox Pilot Criteria
+                <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Expected Outcome & Sandbox Validation Benchmark
                 </h5>
                 <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
                   {challenge.expectedOutcome}
@@ -206,14 +239,21 @@ export const Challenges: React.FC = () => {
               <span className="text-[11px] text-slate-400">
                 Deadline: <strong>{formatDate(challenge.applicationDeadline)}</strong>
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveDetail(challenge)}
-                rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-              >
-                View Specifications & KPIs
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link to="/discover-startups">
+                  <Button variant="outline" size="sm" leftIcon={<Bot className="w-3.5 h-3.5 text-purple-600" />}>
+                    AI Matches
+                  </Button>
+                </Link>
+                <Button
+                  variant="navy"
+                  size="sm"
+                  onClick={() => setActiveDetail(challenge)}
+                  rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                >
+                  Specifications
+                </Button>
+              </div>
             </div>
           </Card>
         ))}
@@ -269,82 +309,171 @@ export const Challenges: React.FC = () => {
         </Modal>
       )}
 
-      {/* Publish Challenge Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Publish Outcome-Based Innovation Challenge"
-        description="Define a new problem statement to initiate startup discovery under GFR Rule 149(viii)"
-        maxWidth="lg"
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="navy" size="sm" onClick={handleCreateChallenge}>
-              Publish Challenge
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleCreateChallenge} className="space-y-4">
-          <Input
-            label="Challenge Title"
-            placeholder="e.g. AI-Based Pipeline Corrosion Profiling"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            required
-          />
+      {/* Multi-step Create Challenge Wizard Modal */}
+      {isModalOpen && (
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={`Publish Outcome Challenge — Step ${wizardStep} of 5`}
+          description="Define a new problem statement to initiate startup discovery under GFR Rule 149(viii)"
+          maxWidth="xl"
+          footer={
+            <div className="flex items-center justify-between w-full">
+              {wizardStep > 1 ? (
+                <Button variant="outline" size="sm" onClick={() => setWizardStep((s) => s - 1)}>
+                  Back
+                </Button>
+              ) : <span />}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </Button>
+                {wizardStep < 5 ? (
+                  <Button variant="navy" size="sm" onClick={() => setWizardStep((s) => s + 1)}>
+                    Next Step ({wizardStep + 1}/5) →
+                  </Button>
+                ) : (
+                  <Button variant="success" size="sm" onClick={handleCreateChallenge}>
+                    Publish Challenge (Status = OPEN)
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs sm:text-sm">
+            {/* Step Indicators */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 text-xs">
+              {[
+                { s: 1, label: '1. Problem Definition' },
+                { s: 2, label: '2. Requirements' },
+                { s: 3, label: '3. KPIs' },
+                { s: 4, label: '4. Eligibility' },
+                { s: 5, label: '5. Publish' },
+              ].map((step) => (
+                <span
+                  key={step.s}
+                  className={wizardStep === step.s ? 'font-bold text-blue-700 border-b-2 border-blue-700 pb-1' : 'text-slate-400'}
+                >
+                  {step.label}
+                </span>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Department / Agency"
-              placeholder="e.g. Public Works Department"
-              value={newDept}
-              onChange={(e) => setNewDept(e.target.value)}
-            />
-            <Input
-              label="Ministry"
-              placeholder="e.g. Ministry of Jal Shakti"
-              value={newMinistry}
-              onChange={(e) => setNewMinistry(e.target.value)}
-            />
+            {/* Step 1: Problem Definition */}
+            {wizardStep === 1 && (
+              <div className="space-y-3">
+                <Input
+                  label="Challenge Title"
+                  placeholder="e.g. AI-Based Municipal Pipeline Corrosion Detection"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  required
+                />
+                <Input
+                  label="Department / Ministry"
+                  placeholder="e.g. Ministry of Housing & Urban Affairs"
+                  value={newDept}
+                  onChange={(e) => setNewDept(e.target.value)}
+                  required
+                />
+                <Textarea
+                  label="Problem Description"
+                  placeholder="Describe the current operational bottlenecks, frequency, and financial losses..."
+                  value={newProblem}
+                  onChange={(e) => setNewProblem(e.target.value)}
+                  rows={2}
+                  required
+                />
+                <Textarea
+                  label="Expected Outcome"
+                  placeholder="Target outcome-based criteria (e.g. >= 25% cost reduction, real-time alerts)..."
+                  value={newOutcome}
+                  onChange={(e) => setNewOutcome(e.target.value)}
+                  rows={2}
+                  required
+                />
+              </div>
+            )}
+
+            {/* Step 2: Requirements */}
+            {wizardStep === 2 && (
+              <div className="space-y-3">
+                <Input
+                  label="Required Technology Stack"
+                  placeholder="e.g. Acoustic Sensors, IoT Telematics, Edge AI"
+                  defaultValue="IoT Telematics, Edge Neural Networks"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Allocated Sandbox Budget (INR ₹)"
+                    type="number"
+                    value={newBudget}
+                    onChange={(e) => setNewBudget(e.target.value)}
+                  />
+                  <Input
+                    label="Pilot Duration (Days)"
+                    type="number"
+                    value={newDuration}
+                    onChange={(e) => setNewDuration(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: KPIs */}
+            {wizardStep === 3 && (
+              <div className="space-y-3">
+                <Input
+                  label="Primary Quantitative KPI Name"
+                  value={kpiName}
+                  onChange={(e) => setKpiName(e.target.value)}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Baseline Value"
+                    value={kpiBaseline}
+                    onChange={(e) => setKpiBaseline(e.target.value)}
+                  />
+                  <Input
+                    label="Target Benchmark"
+                    value={kpiTarget}
+                    onChange={(e) => setKpiTarget(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Eligibility */}
+            {wizardStep === 4 && (
+              <div className="space-y-3">
+                <Input
+                  label="Startup Stage / Readiness"
+                  value={startupStage}
+                  onChange={(e) => setStartupStage(e.target.value)}
+                />
+                <Input
+                  label="Required Certifications"
+                  defaultValue="ISO 9001:2015, ISO 27001 Data Security"
+                />
+              </div>
+            )}
+
+            {/* Step 5: Publish */}
+            {wizardStep === 5 && (
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <Badge variant="primary">Status = OPEN</Badge>
+                <h4 className="font-bold text-base text-slate-900">{newTitle || 'Untitled Challenge'}</h4>
+                <p className="text-xs text-slate-600">Budget: {formatCurrency(Number(newBudget))}</p>
+                <div className="p-3 bg-emerald-50 rounded-lg text-xs text-emerald-900">
+                  <p className="font-bold">✓ Ready for Live Discovery</p>
+                  <p className="mt-0.5">Will be immediately broadcast to DPIIT startups and indexed for AI matching.</p>
+                </div>
+              </div>
+            )}
           </div>
-
-          <Textarea
-            label="Problem Statement"
-            placeholder="Describe the current operational bottlenecks, frequency, and financial/social impacts..."
-            value={newProblem}
-            onChange={(e) => setNewProblem(e.target.value)}
-            rows={3}
-            required
-          />
-
-          <Textarea
-            label="Expected Outcome & Target Metrics"
-            placeholder="Describe the outcome-based validation goals (e.g. >= 25% cost reduction, real-time alerts)..."
-            value={newOutcome}
-            onChange={(e) => setNewOutcome(e.target.value)}
-            rows={3}
-            required
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Sandbox Budget (INR ₹)"
-              type="number"
-              value={newBudget}
-              onChange={(e) => setNewBudget(e.target.value)}
-            />
-            <Input
-              label="Pilot Duration (Days)"
-              type="number"
-              value={newDuration}
-              onChange={(e) => setNewDuration(e.target.value)}
-            />
-          </div>
-        </form>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };

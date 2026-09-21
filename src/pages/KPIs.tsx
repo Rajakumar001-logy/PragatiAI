@@ -12,33 +12,24 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  StatusIndicator,
+  ProgressBar,
 } from '@/components/ui';
 import { mockService } from '@/services/mockService';
 import { KPIMeasurement } from '@/types';
-import { LineChart, Activity, Radio, Cpu, CheckCircle2, TrendingDown, TrendingUp } from 'lucide-react';
+import { Radio, Cpu, CheckCircle2, TrendingUp, Sparkles, Activity, Layers } from 'lucide-react';
 
 export const KPIs: React.FC = () => {
   const [kpis, setKpis] = useState<KPIMeasurement[]>([]);
 
-  useEffect(() => {
+  const loadData = () => {
     mockService.getKPIs().then(setKpis);
-  }, []);
-
-  const getKPIBadge = (status: KPIMeasurement['status']) => {
-    switch (status) {
-      case 'Exceeding':
-        return 'success';
-      case 'On Track':
-        return 'primary';
-      case 'At Risk':
-        return 'warning';
-      case 'Underperforming':
-        return 'danger';
-      default:
-        return 'default';
-    }
   };
+
+  useEffect(() => {
+    loadData();
+    const unsubscribe = mockService.subscribe(loadData);
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -46,66 +37,76 @@ export const KPIs: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Objective KPI Measurement & Verification
+            Objective KPI Measurement & Verification Grid
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Tamper-evident baseline vs target measurement powering milestone payments and procurement decisions
+            Tamper-evident baseline vs target telemetry powering automated milestone payments and GeM procurement scale-up
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Badge variant="success" size="md">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
-            Live Telemetry Ingestion Active
+            Live Ingestion Active (NIC IoT Hub)
           </Badge>
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-t-4 border-t-emerald-600">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Fuel Cost Reduction</span>
-              <Badge variant="success" size="sm">Exceeding Target</Badge>
-            </div>
-            <p className="text-2xl font-extrabold text-emerald-600">24.8%</p>
-            <p className="text-[11px] text-slate-500">Target was 22.0% | Baseline: 0%</p>
-          </CardContent>
-        </Card>
+      {/* Visual KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {kpis.map((kpi) => (
+          <Card key={kpi.id} className="border-t-4 border-t-emerald-600 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <Badge variant={kpi.status === 'Exceeding' ? 'success' : 'primary'} size="sm">
+                  {kpi.status}
+                </Badge>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  {kpi.achievementPercentage}% Achievement
+                </span>
+              </div>
+              <CardTitle className="text-base font-bold text-slate-900 mt-1">{kpi.metricName}</CardTitle>
+              <CardDescription className="text-xs">{kpi.startupName} • {kpi.challengeTitle}</CardDescription>
+            </CardHeader>
 
-        <Card className="border-t-4 border-t-blue-600">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Bin Overflow SLA</span>
-              <Badge variant="primary" size="sm">On Track</Badge>
-            </div>
-            <p className="text-2xl font-extrabold text-blue-700">98.9%</p>
-            <p className="text-[11px] text-slate-500">Target was 99.5% | Baseline: 78.0%</p>
-          </CardContent>
-        </Card>
+            <CardContent className="space-y-4 text-xs">
+              {/* Visual Comparative Bar Chart */}
+              <div className="space-y-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-500">Baseline (Pre-Pilot)</span>
+                    <span className="font-mono font-semibold">{kpi.baseline}</span>
+                  </div>
+                  <ProgressBar value={30} size="sm" variant="navy" />
+                </div>
 
-        <Card className="border-t-4 border-t-emerald-600">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Defect Detection Accuracy</span>
-              <Badge variant="success" size="sm">Exceeding</Badge>
-            </div>
-            <p className="text-2xl font-extrabold text-emerald-600">94.2%</p>
-            <p className="text-[11px] text-slate-500">Target was 92.0% | Baseline: 65.0%</p>
-          </CardContent>
-        </Card>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-500">Contractual Target Benchmark</span>
+                    <span className="font-mono font-semibold text-blue-700">{kpi.target}</span>
+                  </div>
+                  <ProgressBar value={80} size="sm" variant="blue" />
+                </div>
 
-        <Card className="border-t-4 border-t-blue-600">
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Survey Vehicle Speed</span>
-              <Badge variant="primary" size="sm">Compliant</Badge>
-            </div>
-            <p className="text-2xl font-extrabold text-slate-900">62.4 km/h</p>
-            <p className="text-[11px] text-slate-500">Target was 60 km/h patrol speed</p>
-          </CardContent>
-        </Card>
+                <div className="space-y-1 pt-1 border-t border-slate-200">
+                  <div className="flex justify-between text-[11px] font-bold">
+                    <span className="text-emerald-700">Live Achieved Field Value</span>
+                    <span className="font-mono text-emerald-800">{kpi.currentValue}</span>
+                  </div>
+                  <ProgressBar value={kpi.achievementPercentage >= 100 ? 100 : kpi.achievementPercentage} size="md" variant="emerald" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <div className="flex items-center gap-1">
+                  <Cpu className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{kpi.telemetrySource}</span>
+                </div>
+                <span className="font-mono text-[10px]">{kpi.lastUpdated}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* KPI Audit Table */}
@@ -122,11 +123,12 @@ export const KPIs: React.FC = () => {
               <TableRow>
                 <TableHead>Challenge & Startup</TableHead>
                 <TableHead>Outcome Target Metric</TableHead>
-                <TableHead>Baseline (Pre-Pilot)</TableHead>
+                <TableHead>Baseline</TableHead>
                 <TableHead>Contractual Target</TableHead>
                 <TableHead>Current Field Result</TableHead>
+                <TableHead>Achievement %</TableHead>
                 <TableHead>Telemetry Source</TableHead>
-                <TableHead>Performance Status</TableHead>
+                <TableHead>Performance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -134,11 +136,11 @@ export const KPIs: React.FC = () => {
                 <TableRow key={kpi.id}>
                   <TableCell>
                     <div className="space-y-0.5">
-                      <p className="font-semibold text-slate-900">{kpi.startupName}</p>
-                      <p className="text-xs text-slate-500">{kpi.challengeTitle}</p>
+                      <p className="font-bold text-slate-900 text-xs">{kpi.startupName}</p>
+                      <p className="text-[11px] text-slate-500">{kpi.challengeTitle}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium text-slate-800">
+                  <TableCell className="font-semibold text-slate-800 text-xs">
                     {kpi.metricName}
                   </TableCell>
                   <TableCell className="text-xs text-slate-500 font-mono">
@@ -147,8 +149,11 @@ export const KPIs: React.FC = () => {
                   <TableCell className="text-xs font-semibold text-slate-700 font-mono">
                     {kpi.target}
                   </TableCell>
-                  <TableCell className="font-mono text-xs font-bold text-blue-700 bg-blue-50/60 p-2 rounded">
+                  <TableCell className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded">
                     {kpi.currentValue}
+                  </TableCell>
+                  <TableCell className="font-bold text-xs text-blue-700">
+                    {kpi.achievementPercentage}%
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -157,7 +162,7 @@ export const KPIs: React.FC = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getKPIBadge(kpi.status)} size="sm">
+                    <Badge variant={kpi.status === 'Exceeding' ? 'success' : 'primary'} size="sm">
                       {kpi.status}
                     </Badge>
                   </TableCell>

@@ -2,17 +2,13 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { UserRole } from '@/types';
-import { mockService } from '@/services/mockService';
+import { useAuth } from '@/auth/AuthProvider';
 
 export const AppLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>('government');
-
-  const handleRoleChange = (role: UserRole) => {
-    mockService.switchRole(role);
-    setCurrentRole(role);
-  };
+  const { role, user } = useAuth();
+  const currentRole = role || 'government';
+  const userName = user?.name || user?.email || 'Rajesh Varma, IAS';
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
@@ -24,11 +20,11 @@ export const AppLayout: React.FC = () => {
         <Topbar
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
           currentRole={currentRole}
-          onRoleChange={handleRoleChange}
+          userName={userName}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          <Outlet context={{ currentRole }} />
+          <Outlet context={{ currentRole, user }} />
         </main>
 
         {/* Enterprise Government Footer */}
@@ -38,7 +34,7 @@ export const AppLayout: React.FC = () => {
               © 2026 <strong>Pragati AI</strong> — Smart India Hackathon Prototype | National Innovation Procurement Framework
             </p>
             <div className="flex items-center gap-4 text-[11px] text-slate-400">
-              <span>GFR 2017 Compliant</span>
+              <span>GFR 2017 Rule 149(viii) Compliant</span>
               <span>•</span>
               <span>DPIIT Startup India</span>
               <span>•</span>

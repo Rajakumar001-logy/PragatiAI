@@ -19,25 +19,46 @@ import {
 import { mockService } from '@/services/mockService';
 import { Application } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { FileCheck, FileText, CheckCircle2, AlertCircle, Eye, Check, X } from 'lucide-react';
+import { FileCheck, FileText, CheckCircle2, AlertCircle, Eye, Check, X, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
 
 export const Applications: React.FC = () => {
+  const { role } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     mockService.getApplications().then(setApplications);
+  };
+
+  useEffect(() => {
+    loadData();
+    const unsubscribe = mockService.subscribe(loadData);
+    return () => unsubscribe();
   }, []);
+
+  const handleUpdateStatus = async (appId: string, nextStatus: Application['status']) => {
+    await mockService.updateApplicationStatus(appId, nextStatus);
+    setSelectedApp(null);
+    alert(`Application status transitioned to '${nextStatus}'.`);
+  };
 
   const getStatusBadgeVariant = (status: Application['status']) => {
     switch (status) {
+      case 'Selected':
       case 'Shortlisted for Pilot':
+      case 'Shortlisted':
         return 'success';
       case 'Eligibility Passed':
+      case 'Pilot':
+      case 'Validation':
         return 'primary';
+      case 'Expert Evaluation':
       case 'Under Evaluation':
+      case 'Eligibility Check':
         return 'warning';
       case 'Rejected':
+      case 'Eligibility Rejected':
         return 'danger';
       default:
         return 'default';
@@ -50,10 +71,10 @@ export const Applications: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Startup Applications & Eligibility Screening
+            Startup Applications & Proposal Screening
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Automated DPIIT verification, technical qualification, and pilot shortlist governance
+            DPIIT verification, technical eligibility qualification, and sandbox shortlist governance
           </p>
         </div>
 
@@ -90,8 +111,8 @@ export const Applications: React.FC = () => {
                 <TableRow key={app.id}>
                   <TableCell className="font-medium">
                     <div className="space-y-0.5">
-                      <p className="text-slate-900 font-semibold">{app.startupName}</p>
-                      <span className="font-mono text-[11px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                      <p className="text-slate-900 font-semibold text-xs">{app.startupName}</p>
+                      <span className="font-mono text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
                         {app.dpiitNumber}
                       </span>
                     </div>
@@ -110,7 +131,7 @@ export const Applications: React.FC = () => {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium text-slate-900">
+                  <TableCell className="font-medium text-slate-900 text-xs">
                     {formatCurrency(app.pilotBudgetProposed)}
                   </TableCell>
                   <TableCell className="text-xs text-slate-500">
@@ -128,7 +149,7 @@ export const Applications: React.FC = () => {
                       onClick={() => setSelectedApp(app)}
                       leftIcon={<Eye className="w-3.5 h-3.5" />}
                     >
-                      Review
+                      Dossier
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -145,7 +166,7 @@ export const Applications: React.FC = () => {
           onClose={() => setSelectedApp(null)}
           title={`Application Review: ${selectedApp.startupName}`}
           description={`Challenge: ${selectedApp.challengeTitle}`}
-          maxWidth="lg"
+          maxWidth="xl"
           footer={
             <div className="flex items-center justify-between w-full">
               <span className="text-xs text-slate-500">Status: <strong>{selectedApp.status}</strong></span>
@@ -153,30 +174,52 @@ export const Applications: React.FC = () => {
                 <Button variant="ghost" size="sm" onClick={() => setSelectedApp(null)}>
                   Close
                 </Button>
-                <Button
-                  variant="navy"
-                  size="sm"
-                  onClick={() => {
-                    alert('Proposal endorsed for Stage 2 Expert Technical Evaluation committee.');
-                    setSelectedApp(null);
-                  }}
-                >
-                  Endorse for Committee Review
-                </Button>
+                {(role === 'government' || role === 'admin') && (
+                  <>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Rejected')}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      variant="navy"
+                      size="sm"
+                      onClick={() => handleUpdateStatus(selectedApp.id, 'Shortlisted for Pilot')}
+                    >
+                      Shortlist for Sandbox Pilot
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           }
         >
           <div className="space-y-4 text-xs sm:text-sm">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <h5 className="font-bold text-slate-900 mb-1">Executive Proposal Summary</h5>
-              <p className="text-slate-600 leading-relaxed">{selectedApp.proposalSummary}</p>
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <h5 className="font-bold text-slate-900">Proposal Summary & Solution</h5>
+              <p className="text-slate-700 leading-relaxed">{selectedApp.solutionDescription || selectedApp.proposalSummary}</p>
             </div>
+
+            {selectedApp.technicalApproach && (
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <h5 className="font-bold text-slate-900">Technical Approach & Algorithms</h5>
+                <p className="text-slate-700 leading-relaxed">{selectedApp.technicalApproach}</p>
+              </div>
+            )}
+
+            {selectedApp.implementationPlan && (
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <h5 className="font-bold text-slate-900">60-Day Pilot Implementation Plan</h5>
+                <p className="text-slate-700 leading-relaxed">{selectedApp.implementationPlan}</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">DPIIT Recognition</span>
-                <span className="text-xs font-bold text-emerald-700 mt-1 block">Verified Active</span>
+                <span className="text-xs font-bold text-emerald-700 mt-1 block">Verified Active ({selectedApp.dpiitNumber})</span>
               </div>
               <div className="p-3 rounded-lg border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Proposed Pilot Cost</span>
@@ -189,7 +232,7 @@ export const Applications: React.FC = () => {
             <div>
               <h5 className="font-bold text-slate-900 mb-2">Attached Verification Documents</h5>
               <div className="space-y-2">
-                {selectedApp.documents.map((doc, i) => (
+                {selectedApp.documents?.map((doc, i) => (
                   <div key={i} className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-white">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-blue-600" />

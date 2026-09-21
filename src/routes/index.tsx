@@ -5,6 +5,8 @@ import { Login } from '@/pages/Login';
 import { GovernmentDashboard } from '@/pages/GovernmentDashboard';
 import { StartupPortal } from '@/pages/StartupPortal';
 import { ExpertReview } from '@/pages/ExpertReview';
+import { AdminDashboard } from '@/pages/AdminDashboard';
+import { DiscoverStartups } from '@/pages/DiscoverStartups';
 import { Challenges } from '@/pages/Challenges';
 import { Applications } from '@/pages/Applications';
 import { Evaluations } from '@/pages/Evaluations';
@@ -14,6 +16,7 @@ import { Payments } from '@/pages/Payments';
 import { Validation } from '@/pages/Validation';
 import { ScaleUp } from '@/pages/ScaleUp';
 import { Settings } from '@/pages/Settings';
+import { RequireAuth } from '@/auth/RequireAuth';
 
 export const router = createBrowserRouter([
   {
@@ -22,7 +25,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       {
         index: true,
@@ -39,6 +46,14 @@ export const router = createBrowserRouter([
       {
         path: 'expert',
         element: <ExpertReview />,
+      },
+      {
+        path: 'admin',
+        element: <AdminDashboard />,
+      },
+      {
+        path: 'discover-startups',
+        element: <DiscoverStartups />,
       },
       {
         path: 'challenges',
@@ -80,6 +95,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/government" replace />,
+    element: <Navigate to="/login" replace />,
   },
 ]);

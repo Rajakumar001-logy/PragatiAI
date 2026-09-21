@@ -11,13 +11,16 @@ import {
   Badge,
   Tabs,
 } from '@/components/ui';
-import { Shield, Bell, Key, Database, FileText, CheckCircle2, Save } from 'lucide-react';
+import { Shield, Bell, Key, Database, FileText, CheckCircle2, Save, RotateCcw } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
+import { mockService } from '@/services/mockService';
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('department');
-  const [deptName, setDeptName] = useState('Ministry of Housing & Urban Affairs');
-  const [nodalOfficer, setNodalOfficer] = useState('Rajesh Varma, IAS');
-  const [email, setEmail] = useState('rajesh.varma@gov.in');
+  const { user, role } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
+  const [name, setName] = useState(user?.name || 'Rajesh Varma, IAS');
+  const [deptName, setDeptName] = useState(user?.departmentOrCompany || 'Ministry of Housing & Urban Affairs');
+  const [email, setEmail] = useState(user?.email || 'rajesh.varma@gov.in');
   const [saved, setSaved] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
@@ -39,62 +42,74 @@ export const Settings: React.FC = () => {
           </p>
         </div>
 
-        <Badge variant="navy" size="md">
-          <Shield className="w-3.5 h-3.5" />
-          Enterprise Tier
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              mockService.resetToDefaults();
+              alert('Demo state reset to SIH initial baseline.');
+            }}
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+          >
+            Reset Demo Data
+          </Button>
+          <Badge variant="navy" size="md">
+            <Shield className="w-3.5 h-3.5" />
+            {role.toUpperCase()} TIER
+          </Badge>
+        </div>
       </div>
 
       <Tabs
         activeTab={activeTab}
         onChange={setActiveTab}
         tabs={[
-          { id: 'department', label: 'Department Profile' },
+          { id: 'profile', label: 'User & Department Profile' },
           { id: 'compliance', label: 'Legal & GFR Sandbox Rules' },
           { id: 'audit', label: 'Security & Audit Trails' },
           { id: 'integrations', label: 'GeM & PFMS Integrations' },
         ]}
       />
 
-      {activeTab === 'department' && (
+      {activeTab === 'profile' && (
         <form onSubmit={handleSave} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Department & Nodal Authority Details</CardTitle>
+              <CardTitle>Authenticated Profile & Authority</CardTitle>
               <CardDescription>
-                Primary procurement identity used on official sandbox sanction orders
+                Primary procurement identity used on official sandbox sanction orders and evaluations
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Department / Ministry Name"
-                  value={deptName}
-                  onChange={(e) => setDeptName(e.target.value)}
+                  label="Official Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
                 <Input
-                  label="Nodal Officer Name & Designation"
-                  value={nodalOfficer}
-                  onChange={(e) => setNodalOfficer(e.target.value)}
+                  label="Department / Company"
+                  value={deptName}
+                  onChange={(e) => setDeptName(e.target.value)}
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Official Government Email (.gov.in / .nic.in)"
+                  label="Official Email ID"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <Select
-                  label="State / Union Territory Jurisdiction"
+                  label="Jurisdiction / Geographic Scope"
                   options={[
-                    { value: 'central', label: 'Central Ministry (National Scope)' },
-                    { value: 'delhi', label: 'NCT of Delhi' },
-                    { value: 'karnataka', label: 'Karnataka' },
-                    { value: 'maharashtra', label: 'Maharashtra' },
+                    { value: 'national', label: 'National Scope (Central Ministries)' },
+                    { value: 'state', label: 'State Government Jurisdiction' },
+                    { value: 'municipal', label: 'Urban Local Body / Municipal Corporation' },
                   ]}
-                  defaultValue="central"
+                  defaultValue="national"
                 />
               </div>
 
@@ -170,10 +185,10 @@ export const Settings: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
             {[
-              { name: 'Public Financial Management System (PFMS)', desc: 'Milestone escrow disbursal', status: 'Ready for Key' },
+              { name: 'Public Financial Management System (PFMS)', desc: 'Milestone escrow disbursals', status: 'Ready for Key' },
               { name: 'Government e-Marketplace (GeM API)', desc: 'Direct catalog scale-up pipeline', status: 'API v3 Compatible' },
-              { name: 'DPIIT Startup India API', desc: 'Real-time DIPP recognition verification', status: 'Mock Connected' },
-              { name: 'DigiLocker / National Single Window', desc: 'Founder KYC and business documents', status: 'Mock Connected' },
+              { name: 'DPIIT Startup India API', desc: 'Real-time DIPP recognition verification', status: 'Connected' },
+              { name: 'DigiLocker / National Single Window', desc: 'Founder KYC and business documents', status: 'Connected' },
             ].map((int, i) => (
               <div key={i} className="p-3 rounded-lg border border-slate-200 bg-white flex items-center justify-between">
                 <div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Card,
   CardHeader,
@@ -9,12 +10,6 @@ import {
   Button,
   ProgressBar,
   Modal,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
 } from '@/components/ui';
 import { mockService } from '@/services/mockService';
 import { Evaluation } from '@/types';
@@ -24,17 +19,24 @@ import {
   Award,
   CheckCircle2,
   FileCheck,
-  ChevronRight,
-  Shield,
   Star,
+  Sparkles,
+  ArrowRight,
+  ClipboardList,
 } from 'lucide-react';
 
 export const Evaluations: React.FC = () => {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [selectedEval, setSelectedEval] = useState<Evaluation | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     mockService.getEvaluations().then(setEvaluations);
+  };
+
+  useEffect(() => {
+    loadData();
+    const unsubscribe = mockService.subscribe(loadData);
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -43,28 +45,29 @@ export const Evaluations: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Expert Evaluation & Scoring Grid
+            Expert Evaluation Committee & Scoring Grid
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Independent technical committees (IIT / CSIR / Industry Experts) scoring innovation feasibility
+            Independent scientific and academic peer assessments (IIT Delhi / CSIR) grading technology feasibility
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="navy" size="md">
-            <GraduationCap className="w-3.5 h-3.5" />
-            Double-Blind Peer Review
-          </Badge>
+          <Link to="/expert">
+            <Button variant="navy" size="sm" leftIcon={<GraduationCap className="w-4 h-4" />}>
+              Open Evaluator Workspace
+            </Button>
+          </Link>
         </div>
       </div>
 
       {/* Evaluations Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {evaluations.map((evaluation) => (
-          <Card key={evaluation.id} className="hover:border-blue-300 transition-all">
-            <CardHeader className="space-y-2">
+          <Card key={evaluation.id} className="hover:border-blue-300 transition-all shadow-xs">
+            <CardHeader className="space-y-2 pb-3">
               <div className="flex items-center justify-between">
-                <Badge variant="success" size="sm">
+                <Badge variant={evaluation.recommendation === 'Reject' ? 'danger' : 'success'} size="sm">
                   <CheckCircle2 className="w-3 h-3" />
                   {evaluation.recommendation}
                 </Badge>
@@ -81,25 +84,25 @@ export const Evaluations: React.FC = () => {
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span className="font-semibold text-slate-700">{evaluation.evaluatorName}</span>
+                <div className="flex items-center justify-between text-slate-500 mb-1">
+                  <span className="font-bold text-slate-700">{evaluation.evaluatorName}</span>
                   <span>{evaluation.evaluatorAffiliation}</span>
                 </div>
-                <p className="text-xs text-slate-600 italic leading-relaxed">
+                <p className="text-slate-600 italic leading-relaxed">
                   "{evaluation.summaryRemarks}"
                 </p>
               </div>
 
-              {/* Criteria Score Mini Bars */}
+              {/* 6 Criteria Score Bars */}
               <div className="space-y-2.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Scoring Breakdown
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Scoring Breakdown (6 Factors)
                 </p>
-                {evaluation.criteriaScores.map((c) => (
+                {evaluation.criteriaScores?.map((c) => (
                   <div key={c.id} className="space-y-1">
-                    <div className="flex justify-between text-xs">
+                    <div className="flex justify-between text-[11px]">
                       <span className="text-slate-600 truncate max-w-[240px]">{c.criterion}</span>
                       <span className="font-bold text-slate-900">{c.scoreAwarded} / {c.maxScore}</span>
                     </div>
@@ -113,7 +116,7 @@ export const Evaluations: React.FC = () => {
               </div>
             </CardContent>
 
-            <div className="p-5 pt-0 mt-auto border-t border-slate-100 pt-4 flex items-center justify-between">
+            <div className="p-4 pt-0 mt-auto border-t border-slate-100 pt-3 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
                 Assessed: <strong>{formatDate(evaluation.dateEvaluated)}</strong>
               </span>
@@ -122,7 +125,7 @@ export const Evaluations: React.FC = () => {
                 size="sm"
                 onClick={() => setSelectedEval(evaluation)}
               >
-                Detailed Scorecard
+                Full Scorecard
               </Button>
             </div>
           </Card>
@@ -150,14 +153,14 @@ export const Evaluations: React.FC = () => {
                 <p className="text-base font-bold mt-0.5">{selectedEval.recommendation}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs uppercase font-bold text-emerald-700">Total Aggregate</p>
-                <p className="text-xl font-extrabold">{selectedEval.totalScore} / 100</p>
+                <p className="text-xs uppercase font-bold text-emerald-700">Total Aggregate Score</p>
+                <p className="text-2xl font-extrabold">{selectedEval.totalScore} / 100</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <h5 className="font-bold text-slate-900">Evaluator Rubric Details</h5>
-              {selectedEval.criteriaScores.map((c) => (
+              {selectedEval.criteriaScores?.map((c) => (
                 <div key={c.id} className="p-3 rounded-lg border border-slate-200 bg-white">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-semibold text-slate-800">{c.criterion}</span>
