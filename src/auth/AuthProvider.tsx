@@ -1,52 +1,77 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { User, UserRole } from '@/types';
 import { mockUsers } from '@/data/mockData';
 
-export interface SignUpData {
-  name: string;
+export interface PrototypeCredential {
   email: string;
-  password?: string;
+  alternateEmail?: string;
+  password: string;
   role: UserRole;
+  name: string;
   departmentOrCompany: string;
-  designation?: string;
-  phone?: string;
+  designation: string;
+  roleLabel: string;
+  targetDashboard: string;
 }
+
+export const AUTHORIZED_CREDENTIALS: PrototypeCredential[] = [
+  {
+    email: 'gov1123@gmail.com',
+    password: 'Ironman@1',
+    role: 'government',
+    name: 'Dr. Rajesh Varma, IAS',
+    departmentOrCompany: 'Ministry of Housing & Urban Affairs',
+    designation: 'Joint Secretary (Smart Cities Mission)',
+    roleLabel: 'Government Officer',
+    targetDashboard: '/government',
+  },
+  {
+    email: 'startup1123@gmail.com',
+    password: 'Ironman@2',
+    role: 'startup',
+    name: 'Aanya Sharma',
+    departmentOrCompany: 'EcoRoute Technologies Pvt Ltd',
+    designation: 'Founder & CEO (DPIIT Recognized)',
+    roleLabel: 'Startup Innovator',
+    targetDashboard: '/startup',
+  },
+  {
+    email: 'evaluater1123@3gmail.com',
+    alternateEmail: 'evaluater1123@gmail.com',
+    password: 'Ironman@3',
+    role: 'expert',
+    name: 'Prof. S. Ramanathan',
+    departmentOrCompany: 'IIT Delhi & CSIR Review Committee',
+    designation: 'Chairperson, Technical Review Panel',
+    roleLabel: 'Technical Evaluator',
+    targetDashboard: '/expert',
+  },
+  {
+    email: 'administrator@gmail.com',
+    password: 'Ironman@4',
+    role: 'admin',
+    name: 'Directorate General',
+    departmentOrCompany: 'Pragati AI Platform Administration (MeitY)',
+    designation: 'Chief Platform Administrator',
+    roleLabel: 'Platform Administrator',
+    targetDashboard: '/admin',
+  },
+];
 
 interface AuthContextValue {
   user: User | null;
   role: UserRole;
   loading: boolean;
-  signIn: (email: string, password?: string, roleOverride?: UserRole) => Promise<User>;
-  signUp: (data: SignUpData) => Promise<User>;
+  signInWithCredentials: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string; targetDashboard?: string }>;
   loginAsRole: (role: UserRole) => void;
   switchRole: (role: UserRole) => void;
   signOut: () => Promise<void>;
+  authorizedCredentials: PrototypeCredential[];
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AUTH_USER_KEY = 'pragati_ai_auth_user';
-const CUSTOM_USERS_KEY = 'pragati_ai_registered_users';
-
-function getStoredCustomUsers(): User[] {
-  try {
-    const saved = localStorage.getItem(CUSTOM_USERS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.warn('Failed to parse registered users', e);
-  }
-  return [];
-}
-
-function saveCustomUser(newUser: User) {
-  try {
-    const existing = getStoredCustomUsers();
-    const updated = [newUser, ...existing.filter((u) => u.email.toLowerCase() !== newUser.email.toLowerCase())];
-    localStorage.setItem(CUSTOM_USERS_KEY, JSON.stringify(updated));
-  } catch (e) {
-    console.warn('Failed to save registered user', e);
-  }
-}
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -56,8 +81,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     } catch (e) {
       console.warn('Failed to parse saved auth user', e);
     }
-    // Default to mock Government officer for seamless experience if session was active
-    return mockUsers[0];
+    return null;
   });
 
   const [loading, setLoading] = useState(false);
@@ -65,85 +89,78 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const role: UserRole = user?.role || 'government';
 
   const loginAsRole = useCallback((newRole: UserRole) => {
-    const selectedUser = mockUsers.find((u) => u.role === newRole) || mockUsers[0];
-    setUser(selectedUser);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(selectedUser));
+    const cred = AUTHORIZED_CREDENTIALS.find((c) => c.role === newRole) || AUTHORIZED_CREDENTIALS[0];
+    const loggedUser: User = {
+      id: `user-${cred.role}`,
+      name: cred.name,
+      email: cred.email,
+      role: cred.role,
+      departmentOrCompany: cred.departmentOrCompany,
+      designation: cred.designation,
+      verified: true,
+    };
+    setUser(loggedUser);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(loggedUser));
   }, []);
 
   const switchRole = useCallback((newRole: UserRole) => {
     loginAsRole(newRole);
   }, [loginAsRole]);
 
-  const signIn = useCallback(async (email: string, _password?: string, roleOverride?: UserRole): Promise<User> => {
-    setLoading(true);
-    const customUsers = getStoredCustomUsers();
-    const allUsers = [...customUsers, ...mockUsers];
+  const signInWithCredentials = useCallback(
+    async (
+      inputEmail: string,
+      inputPassword: string
+    ): Promise<{ success: boolean; user?: User; error?: string; targetDashboard?: string }> => {
+      setLoading(true);
+      const cleanEmail = inputEmail.trim().toLowerCase();
+      const cleanPassword = inputPassword.trim();
 
-    // Find matching user by email
-    let matched = allUsers.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      // Find matching authorized credential
+      const matched = AUTHORIZED_CREDENTIALS.find(
+        (c) =>
+          c.email.toLowerCase() === cleanEmail ||
+          (c.alternateEmail && c.alternateEmail.toLowerCase() === cleanEmail)
+      );
 
-    if (!matched) {
-      // If user typed custom email with a role selected or guessed
-      const assignedRole: UserRole =
-        roleOverride ||
-        (email.includes('startup') || email.includes('ecoroute') || email.includes('tech')
-          ? 'startup'
-          : email.includes('expert') || email.includes('iit') || email.includes('dr')
-          ? 'expert'
-          : email.includes('admin')
-          ? 'admin'
-          : 'government');
+      if (!matched) {
+        setLoading(false);
+        return {
+          success: false,
+          error: `Access Denied: "${inputEmail}" is not authorized. Only the 4 designated prototype stakeholder emails can log in.`,
+        };
+      }
 
-      const derivedName = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Officer';
-      
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        name: derivedName,
-        email: email.trim(),
-        role: assignedRole,
-        departmentOrCompany:
-          assignedRole === 'government'
-            ? 'Department of Public Innovation'
-            : assignedRole === 'startup'
-            ? 'Pioneering Innovations Pvt Ltd'
-            : assignedRole === 'expert'
-            ? 'Technical Evaluation Committee'
-            : 'Pragati AI Governance Authority',
+      if (matched.password !== cleanPassword) {
+        setLoading(false);
+        return {
+          success: false,
+          error: `Access Denied: Incorrect password for ${matched.email}. Please verify and retry.`,
+        };
+      }
+
+      const loggedUser: User = {
+        id: `user-${matched.role}`,
+        name: matched.name,
+        email: matched.email,
+        role: matched.role,
+        departmentOrCompany: matched.departmentOrCompany,
+        designation: matched.designation,
         verified: true,
-        designation: assignedRole === 'government' ? 'Director / Procurement Officer' : 'Chief Technical Lead',
       };
 
-      saveCustomUser(newUser);
-      matched = newUser;
-    } else if (roleOverride && matched.role !== roleOverride) {
-      matched = { ...matched, role: roleOverride };
-    }
+      setUser(loggedUser);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(loggedUser));
+      setLoading(false);
 
-    setUser(matched);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(matched));
-    setLoading(false);
-    return matched;
-  }, []);
-
-  const signUp = useCallback(async (data: SignUpData): Promise<User> => {
-    setLoading(true);
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: data.name.trim(),
-      email: data.email.trim(),
-      role: data.role,
-      departmentOrCompany: data.departmentOrCompany.trim(),
-      designation: data.designation?.trim() || (data.role === 'government' ? 'Director / Innovation Lead' : 'Founder & CEO'),
-      phone: data.phone?.trim() || '+91 98765 43210',
-      verified: true,
-    };
-
-    saveCustomUser(newUser);
-    setUser(newUser);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(newUser));
-    setLoading(false);
-    return newUser;
-  }, []);
+      return {
+        success: true,
+        user: loggedUser,
+        targetDashboard: matched.targetDashboard,
+      };
+    },
+    []
+  );
 
   const signOut = useCallback(async () => {
     setUser(null);
@@ -155,13 +172,13 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       user,
       role,
       loading,
-      signIn,
-      signUp,
+      signInWithCredentials,
       loginAsRole,
       switchRole,
       signOut,
+      authorizedCredentials: AUTHORIZED_CREDENTIALS,
     }),
-    [user, role, loading, signIn, signUp, loginAsRole, switchRole, signOut]
+    [user, role, loading, signInWithCredentials, loginAsRole, switchRole, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

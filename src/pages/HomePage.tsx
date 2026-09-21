@@ -30,33 +30,42 @@ import {
   Building2,
   MapPin,
   Cpu,
+  KeyRound,
+  AlertCircle,
 } from 'lucide-react';
 import { Button, Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, Input } from '@/components/ui';
-import { useAuth } from '@/auth/AuthProvider';
+import { useAuth, AUTHORIZED_CREDENTIALS, PrototypeCredential } from '@/auth/AuthProvider';
 import { mockService } from '@/services/mockService';
 import { UserRole, Challenge } from '@/types';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, loginAsRole, signIn, signUp } = useAuth();
+  const { user, loginAsRole, signInWithCredentials } = useAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
 
   useEffect(() => {
     mockService.getChallenges().then((list) => setChallenges(list.slice(0, 4)));
   }, []);
 
-  // Direct Auth State for the inline sign-in / registration
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('government');
-  const [name, setName] = useState('');
-  const [organization, setOrganization] = useState('');
+  // Direct Auth State for the inline sign-in
+  const [email, setEmail] = useState('gov1123@gmail.com');
+  const [password, setPassword] = useState('Ironman@1');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authErrorMsg, setAuthErrorMsg] = useState('');
   const [authSuccessMsg, setAuthSuccessMsg] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Selected stage for interactive 7-stage walkthrough
   const [activeStage, setActiveStage] = useState(0);
+
+  const handleSelectCred = (cred: PrototypeCredential, idx: number) => {
+    setEmail(cred.email);
+    setPassword(cred.password);
+    setAuthErrorMsg('');
+    setAuthSuccessMsg(`Selected ${cred.roleLabel} credentials.`);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
 
   const handleQuickDemo = (role: UserRole) => {
     loginAsRole(role);
@@ -66,35 +75,24 @@ export const HomePage: React.FC = () => {
     else if (role === 'admin') navigate('/admin');
   };
 
-  const handleCustomAuth = async (e: React.FormEvent) => {
+  const handleCredentialAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setAuthErrorMsg('');
+    setAuthSuccessMsg('');
+
     try {
-      if (authMode === 'login') {
-        const loggedInUser = await signIn(email || 'rajesh.varma@gov.in', password, selectedRole);
-        setAuthSuccessMsg(`Logged in as ${loggedInUser.name} (${loggedInUser.role})! Redirecting...`);
-        setTimeout(() => {
-          if (loggedInUser.role === 'government') navigate('/government');
-          else if (loggedInUser.role === 'startup') navigate('/startup');
-          else if (loggedInUser.role === 'expert') navigate('/expert');
-          else navigate('/admin');
-        }, 800);
-      } else {
-        const newUser = await signUp({
-          name: name || 'Demo User',
-          email: email || `user_${Date.now()}@domain.in`,
-          password,
-          role: selectedRole,
-          departmentOrCompany: organization || (selectedRole === 'government' ? 'State Innovation Mission' : 'NexGen AI Solutions'),
-        });
-        setAuthSuccessMsg(`Welcome, ${newUser.name}! Account registered. Redirecting...`);
-        setTimeout(() => {
-          if (newUser.role === 'government') navigate('/government');
-          else if (newUser.role === 'startup') navigate('/startup');
-          else if (newUser.role === 'expert') navigate('/expert');
-          else navigate('/admin');
-        }, 800);
+      const result = await signInWithCredentials(email, password);
+      if (!result.success) {
+        setAuthErrorMsg(result.error || 'Access Denied: Invalid credentials.');
+        return;
       }
+      setAuthSuccessMsg(`Authenticated as ${result.user?.name} (${result.user?.role.toUpperCase()})! Redirecting...`);
+      setTimeout(() => {
+        navigate(result.targetDashboard || '/government');
+      }, 600);
+    } catch (err) {
+      setAuthErrorMsg('An error occurred during authentication.');
     } finally {
       setIsSubmitting(false);
     }
@@ -674,175 +672,118 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Direct Interactive Authentication Section (Anyone can sign in / register with custom details) */}
+      {/* Direct Interactive Authentication Section (Strictly for 4 Prototype Credentials) */}
       <section id="auth-section" className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto border-t border-slate-900">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <Badge variant="primary" size="md">
             Direct Platform Access
           </Badge>
           <h2 className="text-3xl font-black text-white tracking-tight">
-            Sign In or Register with Your Details
+            Prototype Stakeholder Login
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            Anyone can log in with their custom credentials, register a new ministry/startup account, or use 1-click demo personas.
+            Access is strictly restricted to the 4 designated prototype stakeholder accounts.
           </p>
         </div>
 
         <Card className="bg-slate-900/90 border-slate-800 shadow-2xl overflow-hidden">
-          {/* Auth Mode Toggle Header */}
-          <div className="grid grid-cols-2 border-b border-slate-800 text-center font-bold text-xs sm:text-sm">
-            <button
-              onClick={() => setAuthMode('login')}
-              className={`py-3.5 transition-colors ${
-                authMode === 'login' ? 'bg-blue-600 text-white shadow-inner' : 'bg-slate-950 text-slate-400 hover:text-white'
-              }`}
-            >
-              Sign In to Existing Account
-            </button>
-            <button
-              onClick={() => setAuthMode('register')}
-              className={`py-3.5 transition-colors ${
-                authMode === 'register' ? 'bg-blue-600 text-white shadow-inner' : 'bg-slate-950 text-slate-400 hover:text-white'
-              }`}
-            >
-              Register New Organization / User
-            </button>
-          </div>
-
           <CardContent className="p-6 sm:p-8 space-y-6">
-            {/* Judge Quick Personas Ribbon */}
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+            {/* 4 Designated Prototype Credentials Card */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Instant 1-Click Persona Access (For Judges & Evaluators)</span>
+                <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  <span>4 Authorized Prototype Accounts</span>
                 </span>
-                <span className="text-[10px] text-slate-500">Zero Password Needed</span>
+                <span className="text-[10px] text-slate-400">Click any card to auto-fill</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('government')}
-                  className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20 text-xs font-bold text-left transition-all flex items-center gap-2"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Gov Officer</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('startup')}
-                  className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold text-left transition-all flex items-center gap-2"
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span>Startup</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('expert')}
-                  className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold text-left transition-all flex items-center gap-2"
-                >
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span>Expert</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('admin')}
-                  className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs font-bold text-left transition-all flex items-center gap-2"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {AUTHORIZED_CREDENTIALS.map((cred, idx) => {
+                  const isSelected = email.toLowerCase() === cred.email.toLowerCase();
+                  return (
+                    <button
+                      key={cred.email}
+                      type="button"
+                      onClick={() => handleSelectCred(cred, idx)}
+                      className={`p-3 rounded-lg border text-left transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-blue-600/30 border-blue-400 ring-1 ring-blue-400 text-white'
+                          : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <Badge
+                          variant={
+                            cred.role === 'government'
+                              ? 'primary'
+                              : cred.role === 'startup'
+                              ? 'success'
+                              : cred.role === 'expert'
+                              ? 'warning'
+                              : 'danger'
+                          }
+                          size="sm"
+                        >
+                          {cred.roleLabel}
+                        </Badge>
+                        {copiedIndex === idx ? (
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                            <Check className="w-3 h-3" /> Auto-filled
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">Auto-fill</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-mono font-bold text-slate-200 truncate">{cred.email}</p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        Password: <span className="text-amber-300 font-semibold">{cred.password}</span>
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {authSuccessMsg && (
-              <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2">
+            {/* Error Alert */}
+            {authErrorMsg && (
+              <div className="p-3.5 rounded-lg bg-red-950/70 border border-red-800 text-red-300 text-xs font-semibold flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{authErrorMsg}</span>
+              </div>
+            )}
+
+            {/* Success Alert */}
+            {authSuccessMsg && !authErrorMsg && (
+              <div className="p-3.5 rounded-lg bg-emerald-950/70 border border-emerald-800 text-emerald-300 text-xs font-semibold flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{authSuccessMsg}</span>
               </div>
             )}
 
             {/* Form */}
-            <form onSubmit={handleCustomAuth} className="space-y-4">
-              {/* Role Picker */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Select Stakeholder Role</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'government', label: 'Government Dept', icon: Shield },
-                    { id: 'startup', label: 'DPIIT Startup', icon: Briefcase },
-                    { id: 'expert', label: 'Technical Expert', icon: GraduationCap },
-                    { id: 'admin', label: 'Platform Admin', icon: ShieldAlert },
-                  ].map((r) => {
-                    const Icon = r.icon;
-                    const isSelected = selectedRole === r.id;
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => setSelectedRole(r.id as UserRole)}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold flex items-center gap-2 text-left transition-all ${
-                          isSelected
-                            ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
-                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{r.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {authMode === 'register' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Your Full Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Dr. Rajesh Sharma"
-                      required={authMode === 'register'}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Ministry / Company / Institute</label>
-                    <input
-                      type="text"
-                      value={organization}
-                      onChange={(e) => setOrganization(e.target.value)}
-                      placeholder="e.g. Ministry of Health / ArogyaMed AI"
-                      required={authMode === 'register'}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              )}
-
+            <form onSubmit={handleCredentialAuth} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Official Email ID</label>
+                  <label className="text-xs font-semibold text-slate-300">Authorized Email ID</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={authMode === 'login' ? 'rajesh.varma@gov.in or any email' : 'officer@gov.in'}
+                    placeholder="e.g. gov1123@gmail.com"
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Password / Token</label>
+                  <label className="text-xs font-semibold text-slate-300">Password</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -855,11 +796,7 @@ export const HomePage: React.FC = () => {
                 className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-600/30"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                {isSubmitting
-                  ? 'Authenticating...'
-                  : authMode === 'login'
-                  ? `Sign In as ${selectedRole.toUpperCase()}`
-                  : `Complete Registration & Enter Platform`}
+                {isSubmitting ? 'Authenticating with Secure Gateway...' : 'Sign In to Authorized Dashboard'}
               </Button>
             </form>
           </CardContent>
