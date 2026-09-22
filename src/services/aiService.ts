@@ -342,7 +342,7 @@ const DOMAIN_TEMPLATES: Record<string, Partial<GeneratedChallengeDraft>> = {
   },
 };
 
-const synthesizeFallbackChallenge = (prompt: string): GeneratedChallengeDraft => {
+const synthesizeFallbackChallenge = (prompt: string, budget?: number): GeneratedChallengeDraft => {
   const p = prompt.toLowerCase();
 
   let matchedDomain = 'water';
@@ -369,13 +369,13 @@ const synthesizeFallbackChallenge = (prompt: string): GeneratedChallengeDraft =>
     title: customTitle,
     ministry: base.ministry || 'Ministry of Housing & Urban Affairs',
     department: base.department || 'Urban Innovation Mission',
-    problemStatement: base.problemStatement || 'Operational bottlenecks require outcome-based deep tech solutions.',
+    problemStatement: prompt.trim().length > 20 ? prompt.trim() : (base.problemStatement || 'Operational bottlenecks require outcome-based deep tech solutions.'),
     currentSituation: base.currentSituation || 'Existing manual practices exhibit delayed response times and lack real-time digital auditing.',
     expectedOutcome: base.expectedOutcome || 'Quantifiable deployment of edge AI or IoT telemetry yielding >= 25% efficiency gains in a 60-day sandbox pilot.',
     requiredTechnology: base.requiredTechnology || ['Edge AI', 'IoT Telemetry', 'Cloud Analytics'],
     targetUsers: base.targetUsers || 'Government Field Engineers & District Administrators',
     geographicArea: base.geographicArea || 'Designated Public Sandbox Zone',
-    budgetAllocated: base.budgetAllocated || 5000000,
+    budgetAllocated: budget || base.budgetAllocated || 5000000,
     pilotDurationDays: base.pilotDurationDays || 60,
     kpis: base.kpis || [
       {
@@ -412,8 +412,10 @@ const synthesizeFallbackChallenge = (prompt: string): GeneratedChallengeDraft =>
 /**
  * Call Google Gemini API (gemini-1.5-flash)
  */
-async function callGemini(prompt: string, apiKey: string): Promise<GeneratedChallengeDraft> {
+async function callGemini(prompt: string, apiKey: string, budget?: number): Promise<GeneratedChallengeDraft> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  const budgetClause = budget ? `Allocated Sandbox Budget: ₹${budget} INR. Set budgetAllocated exactly to ${budget}.` : '';
 
   const payload = {
     contents: [
@@ -421,7 +423,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeneratedChal
         role: 'user',
         parts: [
           {
-            text: `${SYSTEM_PROMPT}\n\nUSER PROBLEM INPUT TO FORMULATE INTO A GFR 149(viii) CHALLENGE:\n"${prompt}"\n\nGenerate the complete JSON object now:`,
+            text: `${SYSTEM_PROMPT}\n\nUSER PROBLEM INPUT TO FORMULATE INTO A GFR 149(viii) CHALLENGE:\n"${prompt}"\n${budgetClause}\n\nGenerate the complete JSON object now:`,
           },
         ],
       },
@@ -463,6 +465,10 @@ async function callGemini(prompt: string, apiKey: string): Promise<GeneratedChal
       target: Number(kpi.target) || 90,
       weightage: Number(kpi.weightage) || 50,
     }));
+  }
+
+  if (budget) {
+    parsed.budgetAllocated = budget;
   }
 
   return {
@@ -533,6 +539,7 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<GeneratedChal
  */
 export async function generateChallengeDraftWithAI(params: {
   prompt: string;
+  budget?: number;
   provider?: AIProvider;
   customApiKey?: string;
 }): Promise<GeneratedChallengeDraft> {
@@ -556,27 +563,25 @@ export async function generateChallengeDraftWithAI(params: {
 
   // If no external key or if explicitly built-in, use high-fidelity synthesis
   if (targetProvider === 'built-in' || !apiKey) {
-    // Add realistic 800ms generation simulation for realistic UI feel
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return synthesizeFallbackChallenge(trimmedPrompt);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return synthesizeFallbackChallenge(trimmedPrompt, params.budget);
   }
 
   try {
     if (targetProvider === 'gemini') {
-      return await callGemini(trimmedPrompt, apiKey);
+      return await callGemini(trimmedPrompt, apiKey, params.budget);
     } else if (targetProvider === 'openai') {
       return await callOpenAI(trimmedPrompt, apiKey);
     }
   } catch (err: unknown) {
     console.warn(`[AI Service] External ${targetProvider} API call failed, falling back to smart built-in engine:`, err);
-    // Graceful fallback so demo/hackathon never breaks
-    const fallback = synthesizeFallbackChallenge(trimmedPrompt);
+    const fallback = synthesizeFallbackChallenge(trimmedPrompt, params.budget);
     const errorMessage = err instanceof Error ? err.message : String(err);
     fallback.reasoningNote = `Notice: External ${targetProvider.toUpperCase()} call encountered (${errorMessage.slice(0, 70)}...). Formulated seamlessly via Pragati AI GFR Rule 149(viii) Built-in Synthesizer.`;
     return fallback;
   }
 
-  return synthesizeFallbackChallenge(trimmedPrompt);
+  return synthesizeFallbackChallenge(trimmedPrompt, params.budget);
 }
 
 export const PRESET_CHALLENGE_IDEAS = [

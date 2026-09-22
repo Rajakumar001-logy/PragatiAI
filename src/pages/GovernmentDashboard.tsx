@@ -41,9 +41,10 @@ import {
   FileText,
   Activity,
   Bot,
+  Trash2,
 } from 'lucide-react';
-import { GeneratedChallengeDraft } from '@/types';
-import { AIChallengeAssistantModal } from '@/components/challenges/AIChallengeAssistantModal';
+import { AICreateChallengeModal } from '@/components/challenges/AICreateChallengeModal';
+
 
 
 export const GovernmentDashboard: React.FC = () => {
@@ -83,52 +84,15 @@ export const GovernmentDashboard: React.FC = () => {
   const [certifications, setCertifications] = useState('ISO 9001, ISO 27001');
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
-  const handleApplyAIDraft = (draft: GeneratedChallengeDraft) => {
-    setNewTitle(draft.title);
-    setNewDept(draft.department ? `${draft.department} (${draft.ministry})` : draft.ministry);
-    setNewProblem(draft.problemStatement);
-    setNewSituation(draft.currentSituation);
-    setNewOutcome(draft.expectedOutcome);
-    setNewTech(draft.requiredTechnology.join(', '));
-    setNewUsers(draft.targetUsers);
-    setNewArea(draft.geographicArea);
-    setNewBudget(String(draft.budgetAllocated));
-    setNewDuration(String(draft.pilotDurationDays));
-    if (draft.kpis && draft.kpis.length > 0) {
-      setKpi1Name(draft.kpis[0].name);
-      setKpi1Baseline(`${draft.kpis[0].baseline} ${draft.kpis[0].unit || ''}`.trim());
-      setKpi1Target(`${draft.kpis[0].target} ${draft.kpis[0].unit || ''}`.trim());
-      setKpi1Method(draft.kpis[0].measurementMethod || 'Independent Telemetry Verification');
+  const handleDeleteChallenge = async (id: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete challenge "${title}"? This will permanently remove it from the platform.`)) {
+      await mockService.deleteChallenge(id);
+      loadData();
     }
-    if (draft.eligibilityCriteria) {
-      setStartupStage(draft.eligibilityCriteria.startupStage);
-      setCertifications(draft.eligibilityCriteria.requiredCertifications.join(', '));
-    }
-    // Open wizard directly to review step so the officer can inspect the generated draft
-    setWizardStep(5);
-    setIsWizardOpen(true);
   };
 
-  const handleDirectPublishAIDraft = async (draft: GeneratedChallengeDraft) => {
-    await mockService.createChallenge({
-      title: draft.title,
-      problemStatement: draft.problemStatement,
-      currentSituation: draft.currentSituation,
-      expectedOutcome: draft.expectedOutcome,
-      department: draft.department,
-      ministry: draft.ministry,
-      requiredTechnology: draft.requiredTechnology,
-      targetUsers: draft.targetUsers,
-      geographicArea: draft.geographicArea,
-      budgetAllocated: draft.budgetAllocated,
-      currentStage: 'OPEN',
-      applicationDeadline: '2026-11-30',
-      pilotDurationDays: draft.pilotDurationDays,
-      tags: draft.tags,
-      kpis: draft.kpis,
-      eligibilityCriteria: draft.eligibilityCriteria,
-    });
-    navigate('/challenges');
+  const handleChallengeCreated = () => {
+    loadData();
   };
 
 
@@ -204,19 +168,13 @@ export const GovernmentDashboard: React.FC = () => {
               className="bg-blue-500 hover:bg-blue-600 text-white font-semibold shadow-lg shadow-blue-500/25 border border-blue-400/30"
               leftIcon={<Sparkles className="w-4 h-4 text-amber-300" />}
             >
-              Draft with AI (Gemini / OpenAI)
+              Create Challenge with AI
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setWizardStep(1);
-                setIsWizardOpen(true);
-              }}
-              leftIcon={<PlusCircle className="w-4 h-4" />}
-            >
-              Manual Wizard
-            </Button>
+            <Link to="/challenges">
+              <Button variant="outline" size="sm" className="text-white bg-white/10 hover:bg-white/20 border-white/20" leftIcon={<ArrowRight className="w-4 h-4" />}>
+                Explore Challenges
+              </Button>
+            </Link>
             <Link to="/discover-startups">
               <Button variant="outline" size="sm" className="text-white bg-white/10 hover:bg-white/20 border-white/20" leftIcon={<Compass className="w-4 h-4" />}>
                 AI Startup Discovery
@@ -356,6 +314,7 @@ export const GovernmentDashboard: React.FC = () => {
                   <TableHead>Applicants</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Deadline</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -381,6 +340,18 @@ export const GovernmentDashboard: React.FC = () => {
                     </TableCell>
                     <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                       {formatDate(c.applicationDeadline)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteChallenge(c.id, c.title)}
+                        className="p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 text-xs"
+                        title="Delete Challenge"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Delete</span>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -687,12 +658,11 @@ export const GovernmentDashboard: React.FC = () => {
         </Modal>
       )}
 
-      {/* AI Challenge Assistant Modal */}
-      <AIChallengeAssistantModal
+      {/* AI Challenge Creation Modal */}
+      <AICreateChallengeModal
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
-        onApplyDraft={handleApplyAIDraft}
-        onDirectPublish={handleDirectPublishAIDraft}
+        onChallengeCreated={handleChallengeCreated}
       />
     </div>
   );

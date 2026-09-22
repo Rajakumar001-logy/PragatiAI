@@ -186,6 +186,22 @@ export const mockService = {
     return newChallenge;
   },
 
+  deleteChallenge: async (id: string): Promise<boolean> => {
+    const target = state.challenges.find((c) => c.id === id);
+    if (!target) return false;
+    state.challenges = state.challenges.filter((c) => c.id !== id);
+    logAudit('Government Officer', 'government', 'DELETE_CHALLENGE', 'Challenge', target.code, `Removed outcome challenge: ${target.title}`);
+    pushNotification(
+      'Challenge Removed',
+      `Challenge ${target.code} (${target.title}) was removed by the Government Department.`,
+      'info',
+      'all'
+    );
+    notifyListeners();
+    return true;
+  },
+
+
   // Startups & AI Matching
   getStartups: (): Promise<Startup[]> => Promise.resolve([...state.startups]),
   getStartupById: (id: string): Promise<Startup | undefined> =>

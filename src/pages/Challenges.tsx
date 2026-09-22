@@ -28,9 +28,10 @@ import {
   Sparkles,
   Bot,
   Compass,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
-import { AIChallengeAssistantModal } from '@/components/challenges/AIChallengeAssistantModal';
+import { AICreateChallengeModal } from '@/components/challenges/AICreateChallengeModal';
 
 
 export const Challenges: React.FC = () => {
@@ -57,43 +58,17 @@ export const Challenges: React.FC = () => {
   const [startupStage, setStartupStage] = useState('DPIIT Registered (TRL 7+)');
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
-  const handleApplyAIDraft = (draft: GeneratedChallengeDraft) => {
-    setNewTitle(draft.title);
-    setNewDept(draft.department || 'Urban Innovation Mission');
-    setNewMinistry(draft.ministry || 'Ministry of Housing & Urban Affairs');
-    setNewProblem(draft.problemStatement);
-    setNewSituation(draft.currentSituation);
-    setNewOutcome(draft.expectedOutcome);
-    setNewBudget(String(draft.budgetAllocated));
-    setNewDuration(String(draft.pilotDurationDays));
-    if (draft.kpis && draft.kpis.length > 0) {
-      setKpiName(draft.kpis[0].name);
-      setKpiBaseline(`${draft.kpis[0].baseline} ${draft.kpis[0].unit || ''}`.trim());
-      setKpiTarget(`${draft.kpis[0].target} ${draft.kpis[0].unit || ''}`.trim());
+  const handleDeleteChallenge = async (id: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete challenge "${title}"? This will permanently remove it from the platform.`)) {
+      await mockService.deleteChallenge(id);
+      if (activeDetail?.id === id) {
+        setActiveDetail(null);
+      }
+      loadData();
     }
-    if (draft.eligibilityCriteria) {
-      setStartupStage(draft.eligibilityCriteria.startupStage);
-    }
-    setWizardStep(5);
-    setIsModalOpen(true);
   };
 
-  const handleDirectPublishAIDraft = async (draft: GeneratedChallengeDraft) => {
-    await mockService.createChallenge({
-      title: draft.title,
-      problemStatement: draft.problemStatement,
-      currentSituation: draft.currentSituation,
-      expectedOutcome: draft.expectedOutcome,
-      department: draft.department,
-      ministry: draft.ministry,
-      budgetAllocated: draft.budgetAllocated,
-      currentStage: 'OPEN',
-      applicationDeadline: '2026-11-30',
-      pilotDurationDays: draft.pilotDurationDays,
-      tags: draft.tags,
-      kpis: draft.kpis,
-      eligibilityCriteria: draft.eligibilityCriteria,
-    });
+  const handleChallengeCreated = () => {
     loadData();
   };
 
@@ -171,28 +146,15 @@ export const Challenges: React.FC = () => {
             </Button>
           </Link>
           {(role === 'government' || role === 'admin') && (
-            <>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setIsAIModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                leftIcon={<Sparkles className="w-4 h-4 text-amber-300" />}
-              >
-                Draft with AI
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setWizardStep(1);
-                  setIsModalOpen(true);
-                }}
-                leftIcon={<Plus className="w-4 h-4" />}
-              >
-                Manual Wizard
-              </Button>
-            </>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAIModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              leftIcon={<Sparkles className="w-4 h-4 text-amber-300" />}
+            >
+              Create Challenge with AI
+            </Button>
           )}
         </div>
       </div>
@@ -308,6 +270,17 @@ export const Challenges: React.FC = () => {
                 >
                   Specifications
                 </Button>
+                {(role === 'government' || role === 'admin') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteChallenge(challenge.id, challenge.title)}
+                    className="p-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                    title="Delete Challenge"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -323,9 +296,22 @@ export const Challenges: React.FC = () => {
           description={`Challenge Code: ${activeDetail.code} | ${activeDetail.ministry}`}
           maxWidth="xl"
           footer={
-            <Button variant="navy" size="sm" onClick={() => setActiveDetail(null)}>
-              Close Details
-            </Button>
+            <div className="flex items-center justify-between w-full">
+              {(role === 'government' || role === 'admin') ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteChallenge(activeDetail.id, activeDetail.title)}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                >
+                  Delete Challenge
+                </Button>
+              ) : <div />}
+              <Button variant="navy" size="sm" onClick={() => setActiveDetail(null)}>
+                Close Details
+              </Button>
+            </div>
           }
         >
           <div className="space-y-4 text-xs sm:text-sm">
@@ -551,12 +537,11 @@ export const Challenges: React.FC = () => {
         </Modal>
       )}
 
-      {/* AI Challenge Assistant Modal */}
-      <AIChallengeAssistantModal
+      {/* AI Challenge Creation Modal */}
+      <AICreateChallengeModal
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
-        onApplyDraft={handleApplyAIDraft}
-        onDirectPublish={handleDirectPublishAIDraft}
+        onChallengeCreated={handleChallengeCreated}
       />
     </div>
   );
