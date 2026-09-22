@@ -21,7 +21,7 @@ import {
   TableCell,
 } from '@/components/ui';
 import { mockService } from '@/services/mockService';
-import { Challenge, Application, Pilot, PaymentMilestone } from '@/types';
+import { Challenge, Application, Pilot, PaymentMilestone, Startup } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import {
   Building2,
@@ -41,13 +41,16 @@ import {
   Compass,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { evaluateStartupCompatibility } from '@/services/aiMatchingService';
 
 export const StartupPortal: React.FC = () => {
   const { user } = useAuth();
+  const [currentStartup, setCurrentStartup] = useState<Startup | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
   const [myPilots, setMyPilots] = useState<Pilot[]>([]);
   const [myPayments, setMyPayments] = useState<PaymentMilestone[]>([]);
+
 
   // 8-step application wizard state
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -70,7 +73,12 @@ export const StartupPortal: React.FC = () => {
     mockService.getApplications().then(setMyApplications);
     mockService.getPilots().then(setMyPilots);
     mockService.getPayments().then(setMyPayments);
+    mockService.getStartups().then((stList) => {
+      const found = stList.find((s) => s.id === 'st-01') || stList[0];
+      setCurrentStartup(found);
+    });
   };
+
 
   useEffect(() => {
     loadData();
@@ -226,18 +234,31 @@ export const StartupPortal: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {challenges.map((challenge, idx) => {
-            const matchScore = idx === 0 ? 94 : idx === 1 ? 87 : 81;
+          {challenges.map((challenge) => {
+            const matchResult = currentStartup ? evaluateStartupCompatibility(challenge, currentStartup) : null;
+            const matchScore = matchResult ? matchResult.matchScore : 82;
+            const isRelevant = matchResult ? matchResult.isRelevant : true;
             return (
-              <Card key={challenge.id} className="flex flex-col justify-between hover:border-emerald-300 transition-all border-t-4 border-t-emerald-600">
+              <Card
+                key={challenge.id}
+                className={`flex flex-col justify-between hover:border-emerald-300 transition-all border-t-4 ${
+                  isRelevant ? 'border-t-emerald-600' : 'border-t-slate-300 opacity-85'
+                }`}
+              >
                 <CardHeader className="space-y-2 pb-3">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                       {challenge.code}
                     </span>
-                    <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-300 flex items-center gap-1">
+                    <span
+                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${
+                        isRelevant
+                          ? 'text-purple-900 bg-purple-100 border-purple-300'
+                          : 'text-slate-600 bg-slate-100 border-slate-300'
+                      }`}
+                    >
                       <Sparkles className="w-3 h-3 text-purple-700" />
-                      {matchScore}% Match
+                      {matchScore}% {isRelevant ? 'High Fit' : 'Fit'}
                     </span>
                   </div>
                   <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">{challenge.title}</CardTitle>

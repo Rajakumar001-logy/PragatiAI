@@ -27,13 +27,17 @@ import {
   Bot,
   ArrowRight,
   TrendingUp,
+  Filter,
+  AlertTriangle,
 } from 'lucide-react';
+import { AIMatchResult } from '@/services/aiMatchingService';
 
 export const DiscoverStartups: React.FC = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [selectedChallengeId, setSelectedChallengeId] = useState<string>('');
-  const [startups, setStartups] = useState<{ startup: Startup; matchScore: number; reason: string }[]>([]);
-  const [activeReasonModal, setActiveReasonModal] = useState<{ startup: Startup; matchScore: number; reason: string } | null>(null);
+  const [filterOnlyRelevant, setFilterOnlyRelevant] = useState<boolean>(true);
+  const [startups, setStartups] = useState<AIMatchResult[]>([]);
+  const [activeReasonModal, setActiveReasonModal] = useState<AIMatchResult | null>(null);
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -47,11 +51,14 @@ export const DiscoverStartups: React.FC = () => {
 
   useEffect(() => {
     if (selectedChallengeId) {
-      mockService.getRecommendedStartups(selectedChallengeId).then(setStartups);
+      mockService
+        .getRecommendedStartups(selectedChallengeId, { onlyRelevant: filterOnlyRelevant })
+        .then(setStartups);
     }
-  }, [selectedChallengeId]);
+  }, [selectedChallengeId, filterOnlyRelevant]);
 
   const selectedChallenge = challenges.find((c) => c.id === selectedChallengeId) || challenges[0];
+
 
   const handleShortlist = (startupId: string, startupName: string) => {
     setShortlistedIds((prev) => new Set([...prev, startupId]));
@@ -122,23 +129,96 @@ export const DiscoverStartups: React.FC = () => {
         </div>
       </div>
 
+      {/* Relevance Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2">
+          <Badge variant={startups.length > 0 ? 'primary' : 'warning'} size="sm">
+            {filterOnlyRelevant ? `${startups.length} Relevant AI Match${startups.length === 1 ? '' : 'es'}` : `${startups.length} Total Startups Evaluated`}
+          </Badge>
+          <span className="text-xs text-slate-500 hidden sm:inline">
+            {filterOnlyRelevant ? 'Filtered strictly by domain & tech relevance (≥ 70% threshold)' : 'Showing all startups with compatibility scores'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+          <button
+            type="button"
+            onClick={() => setFilterOnlyRelevant(true)}
+            className={`px-3 py-1 rounded-md font-semibold transition-all ${
+              filterOnlyRelevant
+                ? 'bg-white text-blue-700 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Only Relevant Matches
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterOnlyRelevant(false)}
+            className={`px-3 py-1 rounded-md font-semibold transition-all ${
+              !filterOnlyRelevant
+                ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            All Startups
+          </button>
+        </div>
+      </div>
+
+      {/* Empty State when no relevant startups match */}
+      {startups.length === 0 && (
+        <Card className="p-8 text-center bg-white border-dashed border-2 border-slate-200">
+          <div className="max-w-md mx-auto space-y-3">
+            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+              <Bot className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-base text-slate-900">No Direct Relevant Startups Found</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              No registered DPIIT startups currently meet the &ge; 70% technical domain compatibility threshold for this specialized challenge. Pragati AI has flagged this challenge for a nationwide incubator broadcast.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilterOnlyRelevant(false)}
+              className="mt-2 text-xs"
+            >
+              View All Registered Startups Anyway
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Recommended Startups Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {startups.map(({ startup, matchScore, reason }) => {
+        {startups.map((matchItem) => {
+          const { startup, matchScore, reason, isRelevant, domain } = matchItem;
           const isShortlisted = shortlistedIds.has(startup.id);
           return (
-            <Card key={startup.id} className="flex flex-col justify-between hover:border-purple-300 transition-all border-t-4 border-t-purple-600 shadow-sm">
+            <Card
+              key={startup.id}
+              className={`flex flex-col justify-between transition-all border-t-4 shadow-sm ${
+                isRelevant
+                  ? 'border-t-purple-600 hover:border-purple-300'
+                  : 'border-t-slate-300 bg-slate-50/50 opacity-80'
+              }`}
+            >
               <CardHeader className="space-y-2 pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-purple-900 bg-purple-100 px-2.5 py-1 rounded-full border border-purple-300 flex items-center gap-1">
+                    <span
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+                        isRelevant
+                          ? 'text-purple-900 bg-purple-100 border-purple-300'
+                          : 'text-slate-600 bg-slate-200 border-slate-300'
+                      }`}
+                    >
                       <Sparkles className="w-3 h-3 text-purple-700" />
                       {matchScore}% AI Match
                     </span>
                   </div>
-                  <Badge variant="success" size="sm">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Eligible
+                  <Badge variant={isRelevant ? 'success' : 'neutral'} size="sm">
+                    {isRelevant ? `✓ ${domain?.toUpperCase() || 'FIT'}` : 'Low Fit'}
                   </Badge>
                 </div>
                 <div>
@@ -193,7 +273,7 @@ export const DiscoverStartups: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveReasonModal({ startup, matchScore, reason })}
+                  onClick={() => setActiveReasonModal(matchItem)}
                   leftIcon={<HelpCircle className="w-3.5 h-3.5" />}
                   className="text-xs"
                 >

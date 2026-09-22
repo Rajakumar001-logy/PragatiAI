@@ -27,6 +27,8 @@ import {
   NotificationItem,
   AuditLogEntry,
 } from '@/types';
+import { getAIRecommendedStartups, AIMatchResult } from './aiMatchingService';
+
 
 // In-Memory Reactive Store with LocalStorage Persistence
 const STORAGE_KEY = 'pragati_ai_store_v1';
@@ -207,20 +209,15 @@ export const mockService = {
   getStartupById: (id: string): Promise<Startup | undefined> =>
     Promise.resolve(state.startups.find((s) => s.id === id)),
   
-  getRecommendedStartups: async (challengeId?: string): Promise<{ startup: Startup; matchScore: number; reason: string }[]> => {
+  getRecommendedStartups: async (
+    challengeId?: string,
+    options?: { onlyRelevant?: boolean; minScore?: number }
+  ): Promise<AIMatchResult[]> => {
     const challenge = state.challenges.find((c) => c.id === challengeId) || state.challenges[0];
-    return state.startups.map((st) => {
-      let score = st.matchScore || 85;
-      if (challenge.title.includes('Waste') && st.brandName.includes('EcoRoute')) score = 94;
-      if (challenge.title.includes('Road') && st.brandName.includes('RoadVision')) score = 91;
-      if (challenge.title.includes('Water') && st.brandName.includes('WaterSense')) score = 88;
-      return {
-        startup: st,
-        matchScore: score,
-        reason: st.aiMatchReason || `Startup aligns with ${challenge.department} requirements on TRL-${st.trlLevel} readiness and sector capabilities.`,
-      };
-    }).sort((a, b) => b.matchScore - a.matchScore);
+    if (!challenge) return [];
+    return getAIRecommendedStartups(challenge, state.startups, options);
   },
+
 
   // Applications
   getApplications: (): Promise<Application[]> => Promise.resolve([...state.applications]),
