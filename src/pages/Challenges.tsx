@@ -15,7 +15,7 @@ import {
   StatusIndicator,
 } from '@/components/ui';
 import { mockService } from '@/services/mockService';
-import { Challenge } from '@/types';
+import { Challenge, GeneratedChallengeDraft } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import {
   Award,
@@ -30,6 +30,8 @@ import {
   Compass,
 } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { AIChallengeAssistantModal } from '@/components/challenges/AIChallengeAssistantModal';
+
 
 export const Challenges: React.FC = () => {
   const { role } = useAuth();
@@ -53,6 +55,48 @@ export const Challenges: React.FC = () => {
   const [kpiBaseline, setKpiBaseline] = useState('0%');
   const [kpiTarget, setKpiTarget] = useState('25%');
   const [startupStage, setStartupStage] = useState('DPIIT Registered (TRL 7+)');
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
+  const handleApplyAIDraft = (draft: GeneratedChallengeDraft) => {
+    setNewTitle(draft.title);
+    setNewDept(draft.department || 'Urban Innovation Mission');
+    setNewMinistry(draft.ministry || 'Ministry of Housing & Urban Affairs');
+    setNewProblem(draft.problemStatement);
+    setNewSituation(draft.currentSituation);
+    setNewOutcome(draft.expectedOutcome);
+    setNewBudget(String(draft.budgetAllocated));
+    setNewDuration(String(draft.pilotDurationDays));
+    if (draft.kpis && draft.kpis.length > 0) {
+      setKpiName(draft.kpis[0].name);
+      setKpiBaseline(`${draft.kpis[0].baseline} ${draft.kpis[0].unit || ''}`.trim());
+      setKpiTarget(`${draft.kpis[0].target} ${draft.kpis[0].unit || ''}`.trim());
+    }
+    if (draft.eligibilityCriteria) {
+      setStartupStage(draft.eligibilityCriteria.startupStage);
+    }
+    setWizardStep(5);
+    setIsModalOpen(true);
+  };
+
+  const handleDirectPublishAIDraft = async (draft: GeneratedChallengeDraft) => {
+    await mockService.createChallenge({
+      title: draft.title,
+      problemStatement: draft.problemStatement,
+      currentSituation: draft.currentSituation,
+      expectedOutcome: draft.expectedOutcome,
+      department: draft.department,
+      ministry: draft.ministry,
+      budgetAllocated: draft.budgetAllocated,
+      currentStage: 'OPEN',
+      applicationDeadline: '2026-11-30',
+      pilotDurationDays: draft.pilotDurationDays,
+      tags: draft.tags,
+      kpis: draft.kpis,
+      eligibilityCriteria: draft.eligibilityCriteria,
+    });
+    loadData();
+  };
+
 
   const loadData = () => {
     mockService.getChallenges().then(setChallenges);
@@ -127,17 +171,28 @@ export const Challenges: React.FC = () => {
             </Button>
           </Link>
           {(role === 'government' || role === 'admin') && (
-            <Button
-              variant="navy"
-              size="sm"
-              onClick={() => {
-                setWizardStep(1);
-                setIsModalOpen(true);
-              }}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              Publish New Challenge
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsAIModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                leftIcon={<Sparkles className="w-4 h-4 text-amber-300" />}
+              >
+                Draft with AI
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setWizardStep(1);
+                  setIsModalOpen(true);
+                }}
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Manual Wizard
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -363,6 +418,27 @@ export const Challenges: React.FC = () => {
             {/* Step 1: Problem Definition */}
             {wizardStep === 1 && (
               <div className="space-y-3">
+                {/* AI Assist Banner inside Wizard */}
+                <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Draft Faster with AI Assistant</p>
+                      <p className="text-[11px] text-slate-500">Auto-formulate GFR 149(viii) problem statement, KPIs & budget using Gemini or OpenAI</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAIModalOpen(true)}
+                    leftIcon={<Bot className="w-3.5 h-3.5 text-blue-600" />}
+                    className="text-xs bg-white hover:bg-blue-50 border-blue-300 text-blue-700 shrink-0"
+                  >
+                    Auto-Draft with AI
+                  </Button>
+                </div>
+
                 <Input
                   label="Challenge Title"
                   placeholder="e.g. AI-Based Municipal Pipeline Corrosion Detection"
@@ -474,6 +550,14 @@ export const Challenges: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* AI Challenge Assistant Modal */}
+      <AIChallengeAssistantModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        onApplyDraft={handleApplyAIDraft}
+        onDirectPublish={handleDirectPublishAIDraft}
+      />
     </div>
   );
 };

@@ -281,3 +281,30 @@ export interface AuditLogEntry {
   details: string;
   hash: string;
 }
+
+export type AIProvider = 'gemini' | 'openai' | 'built-in';
+
+export interface GeneratedChallengeDraft {
+  title: string;
+  ministry: string;
+  department: string;
+  problemStatement: string;
+  currentSituation: string;
+  expectedOutcome: string;
+  requiredTechnology: string[];
+  targetUsers: string;
+  geographicArea: string;
+  budgetAllocated: number;
+  pilotDurationDays: number;
+  kpis: TargetKPI[];
+  eligibilityCriteria: {
+    startupStage: string;
+    requiredCertifications: string[];
+    technologyRequirements: string;
+    securityRequirements: string;
+  };
+  tags: string[];
+  providerUsed?: AIProvider;
+  reasoningNote?: string;
+}
+
