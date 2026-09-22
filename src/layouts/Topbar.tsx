@@ -57,7 +57,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { role, switchRole, signOut, user } = useAuth();
+  const { role, signOut, user } = useAuth();
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -331,36 +331,34 @@ export const Topbar: React.FC<TopbarProps> = ({
             <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-200 bg-white shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <p className="text-xs font-bold text-slate-800">{userName}</p>
-                <p className="text-[10px] text-slate-500">{user?.departmentOrCompany}</p>
+                <p className="text-[11px] text-slate-600 font-medium">{user?.designation || 'Authorized Official'}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{user?.departmentOrCompany}</p>
+                <p className="text-[10px] text-blue-600 font-mono mt-1">{user?.email}</p>
               </div>
 
-              <div className="px-3 py-1">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Switch Persona (SIH Demo)</p>
-              </div>
-
-              {(['government', 'startup', 'expert', 'admin'] as UserRole[]).map((r) => (
+              <div className="pt-1">
                 <button
-                  key={r}
                   onClick={() => {
-                    switchRole(r);
                     setShowUserMenu(false);
-                    if (r === 'government') navigate('/government');
-                    else if (r === 'startup') navigate('/startup');
-                    else if (r === 'expert') navigate('/expert');
-                    else if (r === 'admin') navigate('/admin');
+                    navigate('/settings');
                   }}
-                  className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors text-left',
-                    role === r ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                  )}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-50 transition-colors text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    {roleMeta[r].icon}
-                    <span>{roleMeta[r].label}</span>
-                  </div>
-                  {role === r && <span className="text-[10px] text-blue-600 font-bold">Active</span>}
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Account & Profile</span>
                 </button>
-              ))}
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    navigate('/');
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Public Portal Home</span>
+                </button>
+              </div>
 
               <div className="pt-2 mt-1 border-t border-slate-100">
                 <button
@@ -368,10 +366,10 @@ export const Topbar: React.FC<TopbarProps> = ({
                     signOut();
                     navigate('/login');
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out / Switch Account</span>
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>

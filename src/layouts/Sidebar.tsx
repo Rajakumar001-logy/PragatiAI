@@ -41,7 +41,7 @@ interface NavItem {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { role, switchRole } = useAuth();
+  const { role } = useAuth();
 
   // Role-specific navigation menus matching exact specifications
   const getNavItems = (currentRole: UserRole): NavItem[] => {
@@ -219,7 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-navy-900 hover:text-white transition-colors"
           >
             <Home className="h-3.5 w-3.5 text-slate-400" />
-            <span>Public Home Page</span>
+            <span>Public Home Portal</span>
           </NavLink>
 
           <NavLink
@@ -238,37 +238,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <Settings className="h-3.5 w-3.5 text-slate-400" />
             <span>Settings & Profile</span>
           </NavLink>
-
-          {/* Quick Demo Switcher inside sidebar */}
-          <div className="pt-2">
-            <p className="text-[9px] uppercase font-bold text-slate-500 px-3 pb-1">Judge Quick Role Switch</p>
-            <div className="grid grid-cols-2 gap-1 px-1">
-              <button
-                onClick={() => switchRole('government')}
-                className={cn('text-[10px] py-1 px-2 rounded font-medium border text-left flex items-center gap-1', role === 'government' ? 'bg-blue-600 text-white border-blue-400' : 'bg-navy-900/60 text-slate-300 border-navy-800 hover:bg-navy-800')}
-              >
-                <Shield className="w-2.5 h-2.5" /> Gov
-              </button>
-              <button
-                onClick={() => switchRole('startup')}
-                className={cn('text-[10px] py-1 px-2 rounded font-medium border text-left flex items-center gap-1', role === 'startup' ? 'bg-emerald-600 text-white border-emerald-400' : 'bg-navy-900/60 text-slate-300 border-navy-800 hover:bg-navy-800')}
-              >
-                <Briefcase className="w-2.5 h-2.5" /> Startup
-              </button>
-              <button
-                onClick={() => switchRole('expert')}
-                className={cn('text-[10px] py-1 px-2 rounded font-medium border text-left flex items-center gap-1', role === 'expert' ? 'bg-amber-600 text-white border-amber-400' : 'bg-navy-900/60 text-slate-300 border-navy-800 hover:bg-navy-800')}
-              >
-                <GraduationCap className="w-2.5 h-2.5" /> Expert
-              </button>
-              <button
-                onClick={() => switchRole('admin')}
-                className={cn('text-[10px] py-1 px-2 rounded font-medium border text-left flex items-center gap-1', role === 'admin' ? 'bg-purple-600 text-white border-purple-400' : 'bg-navy-900/60 text-slate-300 border-navy-800 hover:bg-navy-800')}
-              >
-                <ShieldAlert className="w-2.5 h-2.5" /> Admin
-              </button>
-            </div>
-          </div>
         </div>
       </aside>
     </>

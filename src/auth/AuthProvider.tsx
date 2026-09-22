@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         setLoading(false);
         return {
           success: false,
-          error: `Access Denied: "${inputEmail}" is not authorized. Only the 4 designated prototype stakeholder emails can log in.`,
+          error: `Access Denied: "${inputEmail}" is not authorized for portal access. Please verify your registered official email ID.`,
         };
       }
 
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         setLoading(false);
         return {
           success: false,
-          error: `Access Denied: Incorrect password for ${matched.email}. Please verify and retry.`,
+          error: `Access Denied: Incorrect password for ${cleanEmail}. Please check your credentials and retry.`,
         };
       }
 
